@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Exports\ClientsExport;
+use App\Models\ClientImage;
 use App\Models\Contract;
 use App\Models\Quota;
 use App\Models\User;
 use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\InactiveClientsExport;
 
@@ -23,11 +26,12 @@ class ClientController extends Controller
             return $query->where('name', 'like', '%'.$name.'%');
         })->when($request->seller_id, function($query, $seller_id){
             return $query->where('seller_id', $seller_id);
-        })->when($request->start_date, function($query, $start_date){
-            return $query->whereDate('date', '>=', $start_date);
-        })->when($request->end_date, function($query, $end_date){
-            return $query->whereDate('date', '<=', $end_date);
-        })->latest('date')->latest('id')->groupBy('document')->groupBy('group_name')->paginate(20);
+        })->latest('date')->latest('id')->groupBy('document')->groupBy('group_name')
+        ->when($request->recurrence === 'nuevo', function($query){
+            return $query->havingRaw('COUNT(*) = 1');
+        })->when($request->recurrence === 'recurrente', function($query){
+            return $query->havingRaw('COUNT(*) > 1');
+        })->paginate(20);
         
         return view('clients.index', compact('clients', 'sellers'));
     }
@@ -149,6 +153,53 @@ class ClientController extends Controller
                 ->orWhere('document', 'like', '%'.$request->q.'%');
         })->where('client_type', 'Personal')->orderBy('name')->get();
         return response()->json(['items' => $contracts]);
+    }
+
+    public function images(Request $request)
+    {
+        $images = ClientImage::active()
+            ->when($request->document, fn($q, $v) => $q->where('document', $v))
+            ->when($request->group_name, fn($q, $v) => $q->where('group_name', $v))
+            ->get()
+            ->map(fn($img) => [
+                'id'  => $img->id,
+                'url' => Storage::url($img->path),
+            ]);
+
+        return response()->json($images);
+    }
+
+    public function uploadImage(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'image' => 'required|file|mimes:jpg,jpeg,png,gif,bmp,webp,svg,tiff,tif,heic,heif,avif|max:10240',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => false, 'error' => $validator->errors()->first()]);
+        }
+
+        $path = $request->file('image')->store('client-images', 'public');
+
+        ClientImage::create([
+            'company_id' => auth()->user()->company_id,
+            'document'   => $request->document ?: null,
+            'group_name' => $request->group_name ?: null,
+            'path'       => $path,
+        ]);
+
+        return response()->json(['status' => true]);
+    }
+
+    public function deleteImage($id)
+    {
+        $image = ClientImage::find($id);
+        if (!$image) {
+            return response()->json(['status' => false]);
+        }
+        Storage::disk('public')->delete($image->path);
+        $image->update(['deleted' => 1]);
+        return response()->json(['status' => true]);
     }
 
     public static function inactiveClientsQuery(Request $request)

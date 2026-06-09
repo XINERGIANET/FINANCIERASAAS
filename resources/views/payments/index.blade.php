@@ -23,8 +23,9 @@
 				</button>
             </div>
             <div class="text-center">
-                <span class="d-block small">
-                    Tienes un total de:
+                @php $hasFilters = request()->anyFilled(['name','payment_method_id','seller_id','start_date','end_date']); @endphp
+                <span class="d-block small text-muted">
+                    {{ $hasFilters ? 'Total filtrado:' : 'Total general de pagos:' }}
                 </span>
                 <span class="fs-2 fw-bold text-primary">
                     S/{{ number_format($total, 2) }}
@@ -35,38 +36,38 @@
         <div class="card-body border-bottom">
             <form>
                 <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Cliente</label>
+                            <input type="text" class="form-control" name="name" value="{{ request()->name }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Método de pago</label>
+                            <select class="form-select" name="payment_method_id">
+                                <option value="">Seleccionar</option>
+                                @foreach ($payment_methods as $payment_method)
+                                    <option value="{{ $payment_method->id }}"
+                                        @if ($payment_method->id == request()->payment_method_id) selected @endif>{{ $payment_method->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
                     @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('credit'))
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label class="form-label">Cliente</label>
-                                <input type="text" class="form-control" name="name" value="{{ request()->name }}">
-                            </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Asesor comercial</label>
+                            <select class="form-select" name="seller_id">
+                                <option value="">Seleccionar</option>
+                                @foreach ($sellers as $seller)
+                                    <option value="{{ $seller->id }}"
+                                        @if ($seller->id == request()->seller_id) selected @endif>{{ $seller->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label class="form-label">Método de pago</label>
-                                <select class="form-select" name="payment_method_id">
-                                    <option value="">Seleccionar</option>
-                                    @foreach ($payment_methods as $payment_method)
-                                        <option value="{{ $payment_method->id }}"
-                                            @if ($payment_method->id == request()->payment_method_id) selected @endif>{{ $payment_method->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label class="form-label">Asesor comercial</label>
-                                <select class="form-select" name="seller_id">
-                                    <option value="">Seleccionar</option>
-                                    @foreach ($sellers as $seller)
-                                        <option value="{{ $seller->id }}"
-                                            @if ($seller->id == request()->seller_id) selected @endif>{{ $seller->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
+                    </div>
                     @endif
                     <div class="col-md-3">
                         <div class="mb-3">

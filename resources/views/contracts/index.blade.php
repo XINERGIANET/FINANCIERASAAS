@@ -16,11 +16,6 @@
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
                 <i class="ti ti-plus icon"></i> Crear nuevo
             </button>
-            @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('operations'))
-                <a class="btn btn-info ms-2" href="{{ route('contracts.sentinel.excel') }}" target="_blank">
-                    <i class="ti ti-file-spreadsheet icon"></i> Sentinel
-                </a>
-            @endif
             <button class="btn btn-success ms-2" id="btn-excel">
                 <i class="ti ti-file-export icon"></i> Excel
             </button>

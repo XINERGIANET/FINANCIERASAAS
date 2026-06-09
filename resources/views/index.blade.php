@@ -160,61 +160,49 @@
 		</form>
 		<div class="row">
 			<div class="col-md-6">
-				<div class="card mb-4">
+				<div class="card mb-4 dashboard-indicator-card" style="cursor:pointer" data-indicator="wallet_total" data-start="{{ request()->start_date_1 }}" data-end="{{ request()->end_date_1 }}">
 					<div class="card-body">
-						<h5 class="card-title">
-							Cartera total
-						</h5>
+						<h5 class="card-title">Cartera total <small class="text-muted fs-6"><i class="ti ti-zoom-in"></i></small></h5>
 						<span class="block fs-1 text-center fw-semibold">S/{{ number_format($wallet_total, 2) }}</span>
 					</div>
 				</div>
 			</div>
 			<div class="col-md-6">
-				<div class="card mb-4">
+				<div class="card mb-4 dashboard-indicator-card" style="cursor:pointer" data-indicator="due_total" data-start="{{ request()->start_date_1 }}" data-end="{{ request()->end_date_1 }}">
 					<div class="card-body">
-						<h5 class="card-title">
-							Total de deuda (morosos)
-						</h5>
+						<h5 class="card-title">Total de deuda (morosos) <small class="text-muted fs-6"><i class="ti ti-zoom-in"></i></small></h5>
 						<span class="block fs-1 text-center fw-semibold">S/{{ number_format($due_total, 2) }}</span>
 					</div>
 				</div>
 			</div>
 			<div class="col-md-6">
-				<div class="card mb-4">
+				<div class="card mb-4 dashboard-indicator-card" style="cursor:pointer" data-indicator="today_payments">
 					<div class="card-body">
-						<h5 class="card-title">
-							Pagos de hoy
-						</h5>
+						<h5 class="card-title">Pagos de hoy <small class="text-muted fs-6"><i class="ti ti-zoom-in"></i></small></h5>
 						<span class="block fs-1 text-center fw-semibold">S/{{ number_format($today_payments, 2) }}</span>
 					</div>
 				</div>
 			</div>
 			<div class="col-md-6">
-				<div class="card mb-4">
+				<div class="card mb-4 dashboard-indicator-card" style="cursor:pointer" data-indicator="today_timely_payments">
 					<div class="card-body">
-						<h5 class="card-title">
-							Pagos puntuales de hoy
-						</h5>
+						<h5 class="card-title">Pagos puntuales de hoy <small class="text-muted fs-6"><i class="ti ti-zoom-in"></i></small></h5>
 						<span class="block fs-1 text-center fw-semibold">S/{{ number_format($today_timely_payments, 2) }}</span>
 					</div>
 				</div>
 			</div>
 			<div class="col-md-6">
-				<div class="card mb-4">
+				<div class="card mb-4 dashboard-indicator-card" style="cursor:pointer" data-indicator="today_projected">
 					<div class="card-body">
-						<h5 class="card-title">
-							Proyectado para hoy
-						</h5>
+						<h5 class="card-title">Proyectado para hoy <small class="text-muted fs-6"><i class="ti ti-zoom-in"></i></small></h5>
 						<span class="block fs-1 text-center fw-semibold">S/{{ number_format($today_projected, 2) }}</span>
 					</div>
 				</div>
 			</div>
 			<div class="col-md-6">
-				<div class="card">
+				<div class="card dashboard-indicator-card" style="cursor:pointer" data-indicator="today_timely_payments">
 					<div class="card-body">
-						<h5 class="card-title">
-							Pago puntual
-						</h5>
+						<h5 class="card-title">Pago puntual <small class="text-muted fs-6"><i class="ti ti-zoom-in"></i></small></h5>
 						<span class="d-block fs-1 text-center fw-semibold text-center">{{ $today_timely_payments > 0 ? number_format(($today_timely_payments / $today_projected) * 100, 2) : 0 }} %</span>
 					</div>
 				</div>
@@ -489,51 +477,41 @@
 	<div class="col-md-6">
 		<div class="row">
 			<div class="col-md-6">
-				<div class="card mb-4">
+				<div class="card mb-4 dashboard-indicator-card" style="cursor:pointer" data-indicator="active_clients" data-start="{{ request()->start_date_2 }}" data-end="{{ request()->end_date_2 }}" data-seller="{{ request()->seller_id_2 }}">
 					<div class="card-body">
-						<h5 class="card-title">
-							Clientes activos
-						</h5>
+						<h5 class="card-title">Clientes activos <small class="text-muted fs-6"><i class="ti ti-zoom-in"></i></small></h5>
 						<span class="block fs-1 text-center fw-semibold">{{ $active_clients }}</span>
 					</div>
 				</div>
 			</div>
 			<div class="col-md-6">
-				<div class="card mb-4">
+				<div class="card mb-4 dashboard-indicator-card" style="cursor:pointer" data-indicator="due_clients" data-start="{{ request()->start_date_2 }}" data-end="{{ request()->end_date_2 }}" data-seller="{{ request()->seller_id_2 }}">
 					<div class="card-body">
-						<h5 class="card-title">
-							Clientes con deuda
-						</h5>
+						<h5 class="card-title">Clientes con deuda <small class="text-muted fs-6"><i class="ti ti-zoom-in"></i></small></h5>
 						<span class="block fs-1 text-center fw-semibold">{{ $due_clients }}</span>
 					</div>
 				</div>
 			</div>
 			<div class="col-md-6">
-				<div class="card mb-4">
+				<div class="card mb-4 dashboard-indicator-card" style="cursor:pointer" data-indicator="seller_wallet" data-start="{{ request()->start_date_2 }}" data-end="{{ request()->end_date_2 }}" data-seller="{{ request()->seller_id_2 }}">
 					<div class="card-body">
-						<h5 class="card-title">
-							Cartera del asesor
-						</h5>
+						<h5 class="card-title">Cartera del asesor <small class="text-muted fs-6"><i class="ti ti-zoom-in"></i></small></h5>
 						<span class="block fs-1 text-center fw-semibold">S/{{ number_format($seller_wallet, 2) }}</span>
 					</div>
 				</div>
 			</div>
 			<div class="col-md-6">
-				<div class="card mb-4">
+				<div class="card mb-4 dashboard-indicator-card" style="cursor:pointer" data-indicator="requested_amount" data-start="{{ request()->start_date_2 }}" data-end="{{ request()->end_date_2 }}" data-seller="{{ request()->seller_id_2 }}">
 					<div class="card-body">
-						<h5 class="card-title">
-							Monto desembolsado
-						</h5>
+						<h5 class="card-title">Monto desembolsado <small class="text-muted fs-6"><i class="ti ti-zoom-in"></i></small></h5>
 						<span class="block fs-1 text-center fw-semibold">S/{{ number_format($requested_amount, 2) }}</span>
 					</div>
 				</div>
 			</div>
 			<div class="col-md-6 offset-md-3">
-				<div class="card mb-4">
+				<div class="card mb-4 dashboard-indicator-card" style="cursor:pointer" data-indicator="due_quotas" data-start="{{ request()->start_date_2 }}" data-end="{{ request()->end_date_2 }}" data-seller="{{ request()->seller_id_2 }}">
 					<div class="card-body">
-						<h5 class="card-title">
-							# de cuotas por pagar
-						</h5>
+						<h5 class="card-title"># de cuotas por pagar <small class="text-muted fs-6"><i class="ti ti-zoom-in"></i></small></h5>
 						<span class="block fs-1 text-center fw-semibold">{{ number_format($due_quotas, 0) }}</span>
 					</div>
 				</div>
@@ -580,20 +558,17 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 	$(document).ready(function(){
-        $('.portfolio-detail-cell').on('click', function() {
-            var sellerId = $(this).data('seller-id');
-            var date = $(this).data('date');
-            var metric = $(this).data('metric');
-            
-            $('#clientsModal .modal-title').text('Detalle');
+
+        function showDetailModal(url, params) {
+            $('#clientsModal .modal-title').text('Cargando...');
             $('#clientsModal thead').html('<tr><th>Detalle</th></tr>');
             $('#clientsTableBody').html('<tr><td class="text-center"><div class="spinner-border spinner-border-sm text-secondary" role="status"></div> Cargando...</td></tr>');
             $('#clientsModal').modal('show');
 
             $.ajax({
-                url: '{{ route('reports.portfolio-daily.clients') }}',
+                url: url,
                 method: 'GET',
-                data: { seller_id: sellerId, date: date, metric: metric },
+                data: params,
                 success: function(data) {
                     var headers = data.headers || [];
                     var rows = data.rows || [];
@@ -603,31 +578,49 @@
 
                     $('#clientsModal .modal-title').text(data.title || 'Detalle');
                     headers.forEach(function(header) {
-                        head += `<th>${header}</th>`;
+                        head += '<th>' + header + '</th>';
                     });
                     head += '</tr>';
                     $('#clientsModal thead').html(head);
 
                     if (data.subtitle) {
-                        html += `<tr><td colspan="${colspan}" class="text-muted">${data.subtitle}</td></tr>`;
+                        html += '<tr><td colspan="' + colspan + '" class="text-muted small">' + data.subtitle + '</td></tr>';
                     }
 
                     if (rows.length > 0) {
                         rows.forEach(function(row) {
                             html += '<tr>';
                             row.forEach(function(value) {
-                                html += `<td>${value ?? ''}</td>`;
+                                html += '<td>' + (value !== null && value !== undefined ? value : '') + '</td>';
                             });
                             html += '</tr>';
                         });
                     } else {
-                        html += `<tr><td colspan="${colspan}" class="text-center">No se encontraron datos.</td></tr>`;
+                        html += '<tr><td colspan="' + colspan + '" class="text-center text-muted">No se encontraron datos.</td></tr>';
                     }
                     $('#clientsTableBody').html(html);
                 },
                 error: function() {
+                    $('#clientsModal .modal-title').text('Error');
                     $('#clientsTableBody').html('<tr><td class="text-center text-danger">Error al cargar los datos.</td></tr>');
                 }
+            });
+        }
+
+        $('.portfolio-detail-cell').on('click', function() {
+            showDetailModal('{{ route('reports.portfolio-daily.clients') }}', {
+                seller_id: $(this).data('seller-id'),
+                date: $(this).data('date'),
+                metric: $(this).data('metric')
+            });
+        });
+
+        $('.dashboard-indicator-card').on('click', function() {
+            showDetailModal('{{ route('api.indicator-detail') }}', {
+                type: $(this).data('indicator'),
+                start_date: $(this).data('start') || '',
+                end_date: $(this).data('end') || '',
+                seller_id: $(this).data('seller') || ''
             });
         });
 

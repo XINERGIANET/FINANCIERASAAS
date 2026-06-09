@@ -214,15 +214,15 @@ class WebController extends Controller
 
 
         // CARTERA TOTAL : suma de deuda entre las fechas establecidas
-        $wallet_total = Quota::when($request->start_date_1, function($query, $start_date){
-            return $query->whereHas('contract', function($query) use($start_date){
-                return $query->whereDate('date', '>=', $start_date);
-            });
-        })->when($request->end_date_1, function($query, $end_date){
-            return $query->whereHas('contract', function($query) use($end_date){
-                return $query->whereDate('date', '<=', $end_date);
-            });
-        })->where('paid', 0)->sum('debt');
+        $wallet_total = Quota::whereHas('contract', function($query) use($request){
+                $query->where('deleted', 0)
+                    ->when($request->start_date_1, function($q, $start_date){
+                        return $q->whereDate('date', '>=', $start_date);
+                    })
+                    ->when($request->end_date_1, function($q, $end_date){
+                        return $q->whereDate('date', '<=', $end_date);
+                    });
+            })->where('paid', 0)->sum('debt');
 
         // DEUDA TOTAL : CUOTAS QUE FALTAN PAGAR POR CLIENTES MOROSOS
         $due_total = Quota::when($request->start_date_1, function($query, $start_date){
@@ -230,8 +230,9 @@ class WebController extends Controller
         })->when($request->end_date_1, function($query, $end_date){
                 return $query->whereDate('date', '<=', $end_date);
         })->where('paid', 0)
-        ->whereHas('contract', function($q){ // suma de due_days de todos los payments de las cuotas del contrato > 0
-            return $q->whereRaw("(select coalesce(sum(p.due_days),0) from payments p inner join quotas qt on p.quota_id = qt.id where qt.contract_id = contracts.id) > 0");
+        ->whereHas('contract', function($q){
+            return $q->where('deleted', 0)
+                     ->whereRaw("(select coalesce(sum(p.due_days),0) from payments p inner join quotas qt on p.quota_id = qt.id where qt.contract_id = contracts.id) > 0");
         })->sum('debt');
 
         $payments = Payment::active()->when($request->start_date_1, function($query, $start_date){
@@ -574,6 +575,292 @@ class WebController extends Controller
                     'manual_out' => $manualOut,
                 ];
             });
+    }
+
+    public function indicatorDetail(Request $request)
+    {
+        $user = auth()->user();
+        $type = $request->type;
+        $startDate = $request->start_date;
+        $endDate = $request->end_date;
+        $sellerId = $request->seller_id;
+
+        switch ($type) {
+
+            case 'wallet_total':
+                $quotas = Quota::with(['contract.seller'])
+                    ->where('paid', 0)
+                    ->where('debt', '>', 0)
+                    ->whereHas('contract', function($q) use ($startDate, $endDate) {
+                        $q->where('deleted', 0)
+                          ->when($startDate, function($q, $d) { return $q->whereDate('date', '>=', $d); })
+                          ->when($endDate, function($q, $d) { return $q->whereDate('date', '<=', $d); });
+                    })
+                    ->orderByDesc('debt')
+                    ->limit(300)->get();
+
+                return response()->json([
+                    'title' => 'Cartera total',
+                    'subtitle' => 'Cuotas con saldo pendiente. Total: S/ ' . number_format($quotas->sum('debt'), 2),
+                    'headers' => ['Cliente', 'N° Cuota', 'Monto', 'Saldo', 'Fecha', 'Asesor'],
+                    'rows' => $quotas->map(function($q) {
+                        return [
+                            optional($q->contract)->client(),
+                            $q->number,
+                            'S/ ' . number_format($q->amount, 2),
+                            'S/ ' . number_format($q->debt, 2),
+                            optional($q->date)->format('d/m/Y'),
+                            optional(optional($q->contract)->seller)->name ?? 'N/A',
+                        ];
+                    })->values(),
+                ]);
+
+            case 'due_total':
+                $quotas = Quota::with(['contract.seller'])
+                    ->where('paid', 0)
+                    ->when($startDate, function($q, $d) { return $q->whereDate('date', '>=', $d); })
+                    ->when($endDate, function($q, $d) { return $q->whereDate('date', '<=', $d); })
+                    ->whereHas('contract', function($q) {
+                        $q->where('deleted', 0)
+                          ->whereRaw("(SELECT COALESCE(SUM(p.due_days),0) FROM payments p INNER JOIN quotas qt ON p.quota_id = qt.id WHERE qt.contract_id = contracts.id) > 0");
+                    })
+                    ->orderByDesc('debt')
+                    ->limit(300)->get();
+
+                return response()->json([
+                    'title' => 'Total de deuda (morosos)',
+                    'subtitle' => 'Cuotas de clientes con mora. Total: S/ ' . number_format($quotas->sum('debt'), 2),
+                    'headers' => ['Cliente', 'N° Cuota', 'Monto', 'Saldo', 'Fecha', 'Asesor'],
+                    'rows' => $quotas->map(function($q) {
+                        return [
+                            optional($q->contract)->client(),
+                            $q->number,
+                            'S/ ' . number_format($q->amount, 2),
+                            'S/ ' . number_format($q->debt, 2),
+                            optional($q->date)->format('d/m/Y'),
+                            optional(optional($q->contract)->seller)->name ?? 'N/A',
+                        ];
+                    })->values(),
+                ]);
+
+            case 'today_payments':
+                $payments = Payment::active()
+                    ->with(['quota.contract.seller'])
+                    ->whereDate('date', now())
+                    ->whereHas('quota.contract', function($q) { $q->where('deleted', 0); })
+                    ->orderByDesc('id')->get();
+
+                return response()->json([
+                    'title' => 'Pagos de hoy',
+                    'subtitle' => 'Pagos registrados el ' . now()->format('d/m/Y') . '. Total: S/ ' . number_format($payments->sum('amount'), 2),
+                    'headers' => ['Cliente', 'N° Cuota', 'Monto', 'Asesor'],
+                    'rows' => $payments->map(function($p) {
+                        return [
+                            optional(optional($p->quota)->contract)->client(),
+                            optional($p->quota)->number,
+                            'S/ ' . number_format($p->amount, 2),
+                            optional(optional(optional($p->quota)->contract)->seller)->name ?? 'N/A',
+                        ];
+                    })->values(),
+                ]);
+
+            case 'today_timely_payments':
+                $payments = Payment::active()
+                    ->with(['quota.contract.seller'])
+                    ->whereHas('quota', function($q) { $q->whereDate('date', now()); })
+                    ->whereDate('date', now())
+                    ->whereHas('quota.contract', function($q) { $q->where('deleted', 0); })
+                    ->orderByDesc('id')->get();
+
+                return response()->json([
+                    'title' => 'Pagos puntuales de hoy',
+                    'subtitle' => 'Pagos de cuotas vencidas hoy, cobradas hoy. Total: S/ ' . number_format($payments->sum('amount'), 2),
+                    'headers' => ['Cliente', 'N° Cuota', 'Monto', 'Asesor'],
+                    'rows' => $payments->map(function($p) {
+                        return [
+                            optional(optional($p->quota)->contract)->client(),
+                            optional($p->quota)->number,
+                            'S/ ' . number_format($p->amount, 2),
+                            optional(optional(optional($p->quota)->contract)->seller)->name ?? 'N/A',
+                        ];
+                    })->values(),
+                ]);
+
+            case 'today_projected':
+                $quotas = Quota::with(['contract.seller'])
+                    ->whereDate('date', now())
+                    ->whereHas('contract', function($q) { $q->where('deleted', 0); })
+                    ->orderBy('paid')
+                    ->limit(300)->get();
+
+                return response()->json([
+                    'title' => 'Proyectado para hoy',
+                    'subtitle' => 'Cuotas programadas para hoy (' . now()->format('d/m/Y') . '). Total: S/ ' . number_format($quotas->sum('amount'), 2),
+                    'headers' => ['Cliente', 'N° Cuota', 'Monto', 'Saldo', 'Estado', 'Asesor'],
+                    'rows' => $quotas->map(function($q) {
+                        return [
+                            optional($q->contract)->client(),
+                            $q->number,
+                            'S/ ' . number_format($q->amount, 2),
+                            'S/ ' . number_format($q->debt, 2),
+                            $q->paid ? 'Pagado' : 'Pendiente',
+                            optional(optional($q->contract)->seller)->name ?? 'N/A',
+                        ];
+                    })->values(),
+                ]);
+
+            case 'active_clients':
+                $contracts = Contract::active()
+                    ->where('paid', 0)
+                    ->with('seller')
+                    ->when($user->hasRole('seller'), function($q) use ($user) { return $q->where('seller_id', $user->id); })
+                    ->when($sellerId, function($q, $sid) { return $q->where('seller_id', $sid); })
+                    ->when($startDate, function($q, $d) { return $q->whereDate('date', '>=', $d); })
+                    ->when($endDate, function($q, $d) { return $q->whereDate('date', '<=', $d); })
+                    ->orderBy('date', 'desc')->get()
+                    ->unique(function($c) { return ($c->document ?: '') . '|' . ($c->group_name ?: ''); })
+                    ->values();
+
+                return response()->json([
+                    'title' => 'Clientes activos',
+                    'subtitle' => 'Contratos activos. Total: ' . $contracts->count(),
+                    'headers' => ['Cliente', 'Documento/Grupo', 'Monto', 'Fecha', 'Asesor'],
+                    'rows' => $contracts->map(function($c) {
+                        return [
+                            $c->client(),
+                            $c->document ?? $c->group_name,
+                            'S/ ' . number_format($c->requested_amount, 2),
+                            optional($c->date)->format('d/m/Y'),
+                            optional($c->seller)->name ?? 'N/A',
+                        ];
+                    })->values(),
+                ]);
+
+            case 'due_clients':
+                $cutoff = now()->subDays(120)->toDateString();
+                $contractIds = DB::table('contracts')
+                    ->join('quotas', 'quotas.contract_id', 'contracts.id')
+                    ->leftJoin('payments', 'payments.quota_id', 'quotas.id')
+                    ->where('contracts.company_id', $user->company_id)
+                    ->when($user->hasRole('seller'), function($q) use ($user) { return $q->where('contracts.seller_id', $user->id); })
+                    ->when($sellerId, function($q, $sid) { return $q->where('contracts.seller_id', $sid); })
+                    ->when($startDate, function($q, $d) { return $q->whereDate('contracts.date', '>=', $d); })
+                    ->when($endDate, function($q, $d) { return $q->whereDate('contracts.date', '<=', $d); })
+                    ->where(function($q) use ($cutoff) {
+                        $q->where('payments.due_days', '>=', 120)
+                          ->orWhere(function($q2) use ($cutoff) {
+                              $q2->where('quotas.paid', 0)->whereDate('quotas.date', '<=', $cutoff);
+                          });
+                    })
+                    ->where('contracts.deleted', 0)
+                    ->pluck('contracts.id')->unique();
+
+                $contracts = Contract::with('seller')
+                    ->whereIn('id', $contractIds)
+                    ->orderBy('date', 'desc')->get()
+                    ->unique(function($c) { return ($c->document ?: '') . '|' . ($c->group_name ?: ''); })
+                    ->values();
+
+                return response()->json([
+                    'title' => 'Clientes con deuda (morosos)',
+                    'subtitle' => 'Con mora >= 120 días. Total: ' . $contracts->count(),
+                    'headers' => ['Cliente', 'Documento/Grupo', 'Monto', 'Fecha', 'Asesor'],
+                    'rows' => $contracts->map(function($c) {
+                        return [
+                            $c->client(),
+                            $c->document ?? $c->group_name,
+                            'S/ ' . number_format($c->requested_amount, 2),
+                            optional($c->date)->format('d/m/Y'),
+                            optional($c->seller)->name ?? 'N/A',
+                        ];
+                    })->values(),
+                ]);
+
+            case 'seller_wallet':
+                $quotas = Quota::with(['contract.seller'])
+                    ->whereHas('contract', function($q) use ($user, $sellerId, $startDate, $endDate) {
+                        $q->where('deleted', 0)
+                          ->when($user->hasRole('seller'), function($q) use ($user) { return $q->where('seller_id', $user->id); })
+                          ->when($sellerId, function($q, $sid) { return $q->where('seller_id', $sid); })
+                          ->when($startDate, function($q, $d) { return $q->whereDate('date', '>=', $d); })
+                          ->when($endDate, function($q, $d) { return $q->whereDate('date', '<=', $d); });
+                    })
+                    ->where('paid', 0)
+                    ->orderByDesc('debt')
+                    ->limit(300)->get();
+
+                return response()->json([
+                    'title' => 'Cartera del asesor',
+                    'subtitle' => 'Cuotas pendientes. Total: S/ ' . number_format($quotas->sum('debt'), 2),
+                    'headers' => ['Cliente', 'N° Cuota', 'Monto', 'Saldo', 'Fecha', 'Asesor'],
+                    'rows' => $quotas->map(function($q) {
+                        return [
+                            optional($q->contract)->client(),
+                            $q->number,
+                            'S/ ' . number_format($q->amount, 2),
+                            'S/ ' . number_format($q->debt, 2),
+                            optional($q->date)->format('d/m/Y'),
+                            optional(optional($q->contract)->seller)->name ?? 'N/A',
+                        ];
+                    })->values(),
+                ]);
+
+            case 'requested_amount':
+                $contracts = Contract::active()
+                    ->with('seller')
+                    ->when($user->hasRole('seller'), function($q) use ($user) { return $q->where('seller_id', $user->id); })
+                    ->when($sellerId, function($q, $sid) { return $q->where('seller_id', $sid); })
+                    ->when($startDate, function($q, $d) { return $q->whereDate('date', '>=', $d); })
+                    ->when($endDate, function($q, $d) { return $q->whereDate('date', '<=', $d); })
+                    ->orderBy('date', 'desc')->get();
+
+                return response()->json([
+                    'title' => 'Monto desembolsado',
+                    'subtitle' => 'Contratos en el período. Total: S/ ' . number_format($contracts->sum('requested_amount'), 2),
+                    'headers' => ['Cliente', 'Documento/Grupo', 'Monto', 'Fecha', 'Asesor'],
+                    'rows' => $contracts->map(function($c) {
+                        return [
+                            $c->client(),
+                            $c->document ?? $c->group_name,
+                            'S/ ' . number_format($c->requested_amount, 2),
+                            optional($c->date)->format('d/m/Y'),
+                            optional($c->seller)->name ?? 'N/A',
+                        ];
+                    })->values(),
+                ]);
+
+            case 'due_quotas':
+                $quotas = Quota::with(['contract.seller'])
+                    ->whereHas('contract', function($q) use ($user, $sellerId, $startDate, $endDate) {
+                        $q->where('deleted', 0)
+                          ->when($user->hasRole('seller'), function($q) use ($user) { return $q->where('seller_id', $user->id); })
+                          ->when($sellerId, function($q, $sid) { return $q->where('seller_id', $sid); })
+                          ->when($startDate, function($q, $d) { return $q->whereDate('date', '>=', $d); })
+                          ->when($endDate, function($q, $d) { return $q->whereDate('date', '<=', $d); });
+                    })
+                    ->where('paid', 0)
+                    ->orderBy('date')
+                    ->limit(300)->get();
+
+                return response()->json([
+                    'title' => '# Cuotas por pagar',
+                    'subtitle' => 'Cuotas pendientes de pago. Total: ' . $quotas->count(),
+                    'headers' => ['Cliente', 'N° Cuota', 'Monto', 'Saldo', 'Fecha', 'Asesor'],
+                    'rows' => $quotas->map(function($q) {
+                        return [
+                            optional($q->contract)->client(),
+                            $q->number,
+                            'S/ ' . number_format($q->amount, 2),
+                            'S/ ' . number_format($q->debt, 2),
+                            optional($q->date)->format('d/m/Y'),
+                            optional(optional($q->contract)->seller)->name ?? 'N/A',
+                        ];
+                    })->values(),
+                ]);
+
+            default:
+                return response()->json(['title' => 'Detalle', 'subtitle' => '', 'headers' => [], 'rows' => []]);
+        }
     }
 
     public function apiReniec(Request $request){

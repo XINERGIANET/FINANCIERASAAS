@@ -39,16 +39,14 @@
 						</select>
 					</div>
 				</div>
-				<div class="col-md-3">
+<div class="col-md-3">
 					<div class="mb-3">
-						<label class="form-label">Inicio del préstamo</label>
-						<input type="date" class="form-control" name="start_date" value="{{ request()->start_date }}">
-					</div>
-				</div>
-				<div class="col-md-3">
-					<div class="mb-3">
-						<label class="form-label">Fin del préstamo</label>
-						<input type="date" class="form-control" name="end_date" value="{{ request()->end_date }}">
+						<label class="form-label">Tipo de cliente</label>
+						<select class="form-select" name="recurrence">
+							<option value="">Todos</option>
+							<option value="nuevo" @if(request()->recurrence === 'nuevo') selected @endif>Nuevo</option>
+							<option value="recurrente" @if(request()->recurrence === 'recurrente') selected @endif>Recurrente</option>
+						</select>
 					</div>
 				</div>
 			</div>
@@ -82,6 +80,9 @@
 								@endif
 								<button class="btn btn-primary btn-icon btn-contracts" data-client-type="{{ $client->client_type }}" data-document="{{ $client->document }}" data-group-name="{{ $client->group_name }}" title="Contratos">
 									<i class="ti ti-list icon"></i>
+								</button>
+								<button class="btn btn-secondary btn-icon btn-images" data-client-type="{{ $client->client_type }}" data-document="{{ $client->document }}" data-group-name="{{ $client->group_name }}" data-name="{{ $client->client_type == 'Personal' ? $client->name : $client->group_name }}" title="Imágenes">
+									<i class="ti ti-photo icon"></i>
 								</button>
 							</div>
 						</div>
@@ -176,6 +177,36 @@
   				<tbody id="tbl-quotas"></tbody>
   			</table>
 			</div>
+    </div>
+  </div>
+</div>
+<div class="modal modal-blur fade" id="imagesModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Imágenes — <span id="imgClientName"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formUploadImage" enctype="multipart/form-data">
+          @csrf
+          <input type="hidden" id="imgDocument" name="document">
+          <input type="hidden" id="imgGroupName" name="group_name">
+          <div class="d-flex align-items-end gap-2 mb-3">
+            <div class="flex-grow-1">
+              <label class="form-label">Subir imagen</label>
+              <input type="file" class="form-control" id="imageFile" name="image" accept="image/*,.heic,.heif,.avif,.tiff,.tif,.webp,.bmp,.svg">
+            </div>
+            <button type="submit" class="btn btn-primary" id="btnUploadImage" disabled>
+              <i class="ti ti-plus"></i> Subir
+            </button>
+          </div>
+        </form>
+        <hr class="mt-0">
+        <div id="gallery-images"
+             style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px; max-height: 420px; overflow-y: auto; padding-right: 4px;">
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -279,7 +310,7 @@
 							<td>${ quota.paid ? '<span class="badge bg-success"></span>' : '<span class="badge bg-danger"></span>' }</td>
 						</tr>
 					`;
-				
+
 				});
 
 				$('#tbl-quotas').html(html);
@@ -290,6 +321,110 @@
 			}
 		});
 
+	});
+
+	$('#imageFile').on('change', function() {
+		$('#btnUploadImage').prop('disabled', !this.files.length);
+	});
+
+	$('#imagesModal').on('hidden.bs.modal', function() {
+		$('#imageFile').val('');
+		$('#btnUploadImage').prop('disabled', true);
+	});
+
+	var currentImgDocument = '';
+	var currentImgGroupName = '';
+
+	function loadClientImages() {
+		$.ajax({
+			url: '{{ route('clients.images') }}',
+			method: 'GET',
+			data: { document: currentImgDocument, group_name: currentImgGroupName },
+			success: function(data) {
+				var html = '';
+				if (data.length === 0) {
+					html = '<div style="grid-column:1/-1; text-align:center; color:#aaa; padding:24px 0;">Sin imágenes aún</div>';
+				} else {
+					data.forEach(function(img) {
+						html += `
+							<div id="img-block-${img.id}" style="position:relative; border-radius:8px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.12);">
+								<a href="${img.url}" target="_blank" style="display:block; padding-top:100%; position:relative;">
+									<img src="${img.url}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
+								</a>
+								<button class="btn btn-danger btn-sm btn-delete-image" data-id="${img.id}"
+									style="position:absolute; top:6px; right:6px; width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:6px;">
+									<i class="ti ti-trash" style="font-size:16px;"></i>
+								</button>
+							</div>
+						`;
+					});
+				}
+				$('#gallery-images').html(html);
+			}
+		});
+	}
+
+	$(document).on('click', '.btn-images', function() {
+		currentImgDocument  = $(this).data('document') || '';
+		currentImgGroupName = $(this).data('group-name') || '';
+		var name = $(this).data('name');
+		$('#imgClientName').text(name);
+		$('#imgDocument').val(currentImgDocument);
+		$('#imgGroupName').val(currentImgGroupName);
+		$('#imageFile').val('');
+		loadClientImages();
+		$('#imagesModal').modal('show');
+	});
+
+	$('#formUploadImage').on('submit', function(e) {
+		e.preventDefault();
+		var formData = new FormData(this);
+		$.ajax({
+			url: '{{ route('clients.uploadImage') }}',
+			method: 'POST',
+			data: formData,
+			processData: false,
+			contentType: false,
+			success: function(data) {
+				if (data.status) {
+					$('#imageFile').val('');
+					$('#btnUploadImage').prop('disabled', true);
+					loadClientImages();
+				} else {
+					ToastError.fire({ text: data.error || 'Error al subir imagen' });
+				}
+			},
+			error: function() {
+				ToastError.fire({ text: 'Ocurrió un error al subir la imagen' });
+			}
+		});
+	});
+
+	$(document).on('click', '.btn-delete-image', function() {
+		var id = $(this).data('id');
+		Swal.fire({
+			title: '¿Eliminar imagen?',
+			icon: 'warning',
+			showCancelButton: true,
+			confirmButtonText: 'Sí, eliminar',
+			cancelButtonText: 'Cancelar'
+		}).then(function(result) {
+			if (result.isConfirmed) {
+				$.ajax({
+					url: '/clients/images/' + id,
+					method: 'POST',
+					data: { _method: 'DELETE', _token: '{{ csrf_token() }}' },
+					success: function(data) {
+						if (data.status) {
+							$('#img-block-' + id).remove();
+							if ($('#gallery-images [id^="img-block-"]').length === 0) {
+								$('#gallery-images').html('<div style="grid-column:1/-1; text-align:center; color:#aaa; padding:24px 0;">Sin imágenes aún</div>');
+							}
+						}
+					}
+				});
+			}
+		});
 	});
 
 </script>

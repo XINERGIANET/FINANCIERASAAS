@@ -298,15 +298,13 @@ class ContractController extends Controller
                 $contract->address = $request->address;
                 $contract->district_id = $request->district_id;
                 $contract->reference = $request->reference;
-                $contract->home_type = $request->home_type;
-                $contract->business_line = $request->business_line;
-                $contract->business_address = $request->business_address;
+                $contract->home_type = $request->home_type ?: '';
+                $contract->business_line = $request->business_line ?: '';
+                $contract->business_address = $request->business_address ?: '';
                 $contract->business_start_date = $request->business_start_date;
-                $contract->civil_status = $request->civil_status;
-                $contract->husband_name = $request->husband_name;
-                $contract->husband_document = $request->husband_document;
-                $contract->civil_status = $request->civil_status;
-                $contract->civil_status = $request->civil_status;
+                $contract->civil_status = $request->civil_status ?: '';
+                $contract->husband_name = $request->husband_name ?: '';
+                $contract->husband_document = $request->husband_document ?: '';
 
                 //derivar cuotas anteriores - TODO: preguntar como sería para préstamos grupales
                 // Quota::where('paid', 0)
