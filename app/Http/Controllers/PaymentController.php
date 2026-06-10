@@ -16,9 +16,51 @@ use App\Models\Quota;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Models\User;
+use App\Services\MultiPaymentService;
 
 class PaymentController extends Controller
 {
+    public function multiple(Request $request)
+    {
+        $user = auth()->user();
+        $sellers = User::seller()->active()->get();
+
+        $quotas = Quota::active()
+            ->when($user->hasRole('seller'), function ($query) use ($user) {
+                return $query->whereHas('contract', function ($query) use ($user) {
+                    return $query->where('seller_id', $user->id);
+                });
+            })
+            ->when($request->name, function ($query, $name) {
+                return $query->whereHas('contract', function ($query) use ($name) {
+                    return $query->where(function ($query) use ($name) {
+                        return $query->where('name', 'like', '%' . $name . '%')
+                            ->orWhere('group_name', 'like', '%' . $name . '%');
+                    });
+                });
+            })
+            ->when($request->seller_id, function ($query, $seller_id) {
+                return $query->whereHas('contract', function ($query) use ($seller_id) {
+                    return $query->where('seller_id', $seller_id);
+                });
+            })
+            ->when($request->from_days, function ($query, $from_days) {
+                return $query->whereRaw('DATEDIFF(?, date) >= ?', [now()->format('Y-m-d'), $from_days]);
+            })
+            ->when($request->to_days, function ($query, $to_days) {
+                return $query->whereRaw('DATEDIFF(?, date) <= ?', [now()->format('Y-m-d'), $to_days]);
+            })
+            ->where('debt', '>', 0)
+            ->with('contract.seller')
+            ->orderBy('date')
+            ->orderBy('number')
+            ->paginate(20);
+
+        $payment_methods = PaymentMethod::active()->get();
+
+        return view('payments.multiple', compact('quotas', 'sellers', 'payment_methods'));
+    }
+
     public function index(Request $request){
         $user = auth()->user();
         $payments = Payment::active()->when($user->hasRole('seller'), function($query) use($user){
@@ -123,6 +165,10 @@ class PaymentController extends Controller
     }
 
     public function store(Request $request){
+        $multipleIds = collect($request->input('cuotas_seleccionadas_ids', []))->filter()->values();
+        if ($multipleIds->isNotEmpty()) {
+            return $this->storeMultiple($request);
+        }
 
 
         $validator = Validator::make($request->all(), [
@@ -241,6 +287,88 @@ class PaymentController extends Controller
             'status' => true
         ]);
         
+    }
+
+    public function storeMultiple(Request $request)
+    {
+        $multiPaymentService = app(MultiPaymentService::class);
+
+        $validator = Validator::make($request->all(), [
+            'cuotas_seleccionadas_ids' => 'required|array|min:1',
+            'cuotas_seleccionadas_ids.*' => 'integer|distinct',
+            'amount' => 'required|numeric|min:0.1',
+            'payment_method_id' => 'required|exists:payment_methods,id',
+            'date' => 'required|date',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+        ]);
+
+        $validator->after(function ($validator) use ($request) {
+            $quotaIds = collect($request->input('cuotas_seleccionadas_ids', []))->filter()->unique()->values();
+
+            if ($quotaIds->isEmpty()) {
+                $validator->errors()->add('cart', 'Debe seleccionar al menos una cuota.');
+                return;
+            }
+
+            $quotas = Quota::active()
+                ->with('contract')
+                ->whereIn('id', $quotaIds)
+                ->get();
+
+            if ($quotas->count() !== $quotaIds->count()) {
+                $validator->errors()->add('cart', 'Una o más cuotas seleccionadas no existen o ya no están disponibles.');
+                return;
+            }
+
+            $contractIds = $quotas->pluck('contract_id')->unique();
+            if ($contractIds->count() !== 1) {
+                $validator->errors()->add('cart', 'Solo puede pagar cuotas de un mismo cliente/contrato por transacción.');
+                return;
+            }
+
+            $selectedDebt = round((float) $quotas->sum('debt'), 2);
+            $amount = round((float) $request->amount, 2);
+
+            if ($amount > $selectedDebt) {
+                $validator->errors()->add('cart', 'El monto total recibido no puede ser mayor que la suma de los saldos seleccionados.');
+            }
+        });
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'error' => $validator->errors()->first()
+            ]);
+        }
+
+        $voucherPath = null;
+
+        try {
+            if ($request->hasFile('image')) {
+                $voucherPath = $request->file('image')->store('payments', 'public');
+            }
+
+            $multiPaymentService->register([
+                'quota_ids' => $request->input('cuotas_seleccionadas_ids', []),
+                'amount' => $request->amount,
+                'payment_method_id' => $request->payment_method_id,
+                'date' => $request->date,
+                'voucher_path' => $voucherPath,
+            ]);
+        } catch (\Throwable $e) {
+            if (!empty($voucherPath) && Storage::disk('public')->exists($voucherPath)) {
+                Storage::disk('public')->delete($voucherPath);
+            }
+
+            return response()->json([
+                'status' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        return response()->json([
+            'status' => true
+        ]);
     }
 
     public function edit(Request $request, Payment $payment){

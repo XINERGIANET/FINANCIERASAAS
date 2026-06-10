@@ -13,6 +13,7 @@ class Payment extends Model
     protected $fillable = [
         'company_id',
         'quota_id',
+        'payment_transaction_id',
         'amount',
         'payment_method_id',
         'date',
@@ -32,6 +33,11 @@ class Payment extends Model
 
     public function quota(){
         return $this->belongsTo(Quota::class);
+    }
+
+    public function transaction()
+    {
+        return $this->belongsTo(PaymentTransaction::class, 'payment_transaction_id');
     }
 
     public function payment_method(){

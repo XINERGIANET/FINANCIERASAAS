@@ -21,7 +21,10 @@
 				<button class="btn btn-success" onclick="exportExcel()">
 					<i class="ti ti-file-export icon"></i> Excel
 				</button>
-            </div>
+                <a class="btn btn-warning" href="{{ route('payments.multiple') }}">
+                    <i class="ti ti-cash icon"></i> Pago múltiple
+                </a>
+			</div>
             <div class="text-center">
                 @php $hasFilters = request()->anyFilled(['name','payment_method_id','seller_id','start_date','end_date']); @endphp
                 <span class="d-block small text-muted">
