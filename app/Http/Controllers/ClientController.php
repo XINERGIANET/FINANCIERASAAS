@@ -104,6 +104,49 @@ class ClientController extends Controller
         ]);
     }
 
+    public function update(Request $request)
+    {
+        $client_type = $request->client_type;
+
+        if ($client_type == 'Personal') {
+            $validator = Validator::make($request->all(), [
+                'old_document' => 'required',
+                'document' => 'required|size:8',
+                'name' => 'required',
+                'phone' => 'nullable',
+                'address' => 'nullable',
+                'civil_status' => 'nullable',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['status' => false, 'error' => $validator->errors()->first()]);
+            }
+
+            Contract::active()->where('document', $request->old_document)->update([
+                'document' => $request->document,
+                'name' => $request->name,
+                'phone' => $request->phone,
+                'address' => $request->address,
+                'civil_status' => $request->civil_status,
+            ]);
+        } else {
+            $validator = Validator::make($request->all(), [
+                'old_group_name' => 'required',
+                'group_name' => 'required',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['status' => false, 'error' => $validator->errors()->first()]);
+            }
+
+            Contract::active()->where('group_name', $request->old_group_name)->update([
+                'group_name' => $request->group_name,
+            ]);
+        }
+
+        return response()->json(['status' => true]);
+    }
+
     public function contracts(Request $request){
         
         $user = auth()->user();

@@ -50,7 +50,7 @@ class EndingContractsExport implements FromCollection, WithHeadings, WithMapping
             $contract->percentage . '%',
             $contract->interest,
             $contract->payable_amount,
-            $contract->insurance_amount,
+            // $contract->insurance_amount,
             $contract->date->format('d/m/Y'),
             $contract->last_payment_date->format('d/m/Y'),
             $contract->paid ? 'Pagado' : 'Pendiente'
@@ -67,7 +67,7 @@ class EndingContractsExport implements FromCollection, WithHeadings, WithMapping
             '% de interés',
             'Interés',
             'Monto a pagar',
-            'Monto seguro',
+            // 'Monto seguro',
             'Fecha de prestamo',
             'Fecha de última cuota',
             'Estado',

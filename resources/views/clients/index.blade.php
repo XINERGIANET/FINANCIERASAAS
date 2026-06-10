@@ -78,6 +78,9 @@
 									<i class="ti ti-search icon"></i>
 								</button>
 								@endif
+								<button class="btn btn-warning btn-icon btn-edit-client" data-client-type="{{ $client->client_type }}" data-document="{{ $client->document }}" data-group-name="{{ $client->group_name }}" title="Editar">
+									<i class="ti ti-edit icon"></i>
+								</button>
 								<button class="btn btn-primary btn-icon btn-contracts" data-client-type="{{ $client->client_type }}" data-document="{{ $client->document }}" data-group-name="{{ $client->group_name }}" title="Contratos">
 									<i class="ti ti-list icon"></i>
 								</button>
@@ -210,6 +213,66 @@
     </div>
   </div>
 </div>
+
+<div class="modal modal-blur fade" id="editClientModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+  	<div class="modal-content">
+        <form id="editClientForm">
+  		<div class="modal-header">
+  			<h5 class="modal-title">Editar Cliente</h5>
+  			 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  		</div>
+        <div class="modal-body">
+            <input type="hidden" name="client_type" id="e_client_type">
+            <input type="hidden" name="old_document" id="e_old_document">
+            <input type="hidden" name="old_group_name" id="e_old_group_name">
+            
+            <div id="divEditPersonal" style="display:none;">
+                <div class="mb-3">
+                    <label class="form-label required">DNI</label>
+                    <input type="text" class="form-control" name="document" id="e_document">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label required">Nombre</label>
+                    <input type="text" class="form-control" name="name" id="e_name">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Teléfono</label>
+                    <input type="text" class="form-control" name="phone" id="e_phone">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Dirección</label>
+                    <input type="text" class="form-control" name="address" id="e_address">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Estado civil</label>
+                    <select class="form-select" name="civil_status" id="e_civil_status">
+                        <option value="">Seleccionar</option>
+                        <option value="Soltero">Soltero</option>
+                        <option value="Casado">Casado</option>
+                        <option value="Divorciado">Divorciado</option>
+                        <option value="Viudo">Viudo</option>
+                        <option value="Conviviente">Conviviente</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="divEditGroup" style="display:none;">
+                <div class="mb-3">
+                    <label class="form-label required">Nombre de grupo</label>
+                    <input type="text" class="form-control" name="group_name" id="e_group_name">
+                </div>
+            </div>
+
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn me-auto" data-bs-dismiss="modal">Cerrar</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-client">Guardar</button>
+        </div>
+        </form>
+    </div>
+  </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -244,6 +307,67 @@
 		});
 
 	});
+
+	$(document).on('click', '.btn-edit-client', function(){
+		var client_type = $(this).data('client-type');
+		var doc = $(this).data('document');
+		var group_name = $(this).data('group-name');
+
+        $('#editClientForm')[0].reset();
+        $('#e_client_type').val(client_type);
+
+        if(client_type == 'Personal'){
+            $('#divEditPersonal').show();
+            $('#divEditGroup').hide();
+            $('#e_old_document').val(doc);
+            
+            // fetch details
+            $.ajax({
+                url: '{{ route('clients.details') }}',
+                method: 'GET',
+                data: { document: doc },
+                success: function(data){
+                    $('#e_document').val(data.document);
+                    $('#e_name').val(data.name);
+                    $('#e_phone').val(data.phone);
+                    $('#e_address').val(data.address);
+                    $('#e_civil_status').val(data.civil_status);
+                    $('#editClientModal').modal('show');
+                }
+            });
+        } else {
+            $('#divEditPersonal').hide();
+            $('#divEditGroup').show();
+            $('#e_old_group_name').val(group_name);
+            $('#e_group_name').val(group_name);
+            $('#editClientModal').modal('show');
+        }
+	});
+
+    $('#editClientForm').submit(function(e) {
+        e.preventDefault();
+        $('#btn-save-client').prop('disabled', true);
+        
+        $.ajax({
+            url: '{{ route('clients.update') }}',
+            method: 'PUT',
+            data: $(this).serialize(),
+            success: function(data) {
+                if(data.status) {
+                    $('#editClientModal').modal('hide');
+                    ToastMessage.fire({ text: 'Cliente actualizado correctamente' })
+                        .then(() => location.reload());
+                } else {
+                    ToastError.fire({ text: data.error || 'Ocurrió un error' });
+                    $('#btn-save-client').prop('disabled', false);
+                }
+            },
+            error: function() {
+                ToastError.fire({ text: 'Ocurrió un error' });
+                $('#btn-save-client').prop('disabled', false);
+            }
+        });
+    });
 
 	$(document).on('click', '.btn-contracts', function(){
 

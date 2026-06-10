@@ -20,6 +20,7 @@ class Company extends Model
         'status',
         'insurance_amount',
         'number_pagare',
+        'client_type_config',
     ];
 
     protected $casts = [

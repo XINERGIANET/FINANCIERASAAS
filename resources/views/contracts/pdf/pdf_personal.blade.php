@@ -199,12 +199,12 @@
                 <strong>Periodicidad:</strong> {{ strtoupper($contract->quota_type) }}
             </td>
         </tr>
-        <tr>
+        {{-- <tr>
             <td style="padding: 5px;">
                 <strong>Monto seguro:</strong> S/. {{ number_format($contract->insurance_amount ?? 0, 2) }}
             </td>
             <td colspan="2" style="padding: 5px;"></td>
-        </tr>
+        </tr> --}}
     </table>
     <h4 style="text-align: center; margin-top: 20px; margin-bottom: 10px;">CRONOGRAMA</h4>
 

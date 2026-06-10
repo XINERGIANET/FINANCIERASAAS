@@ -56,6 +56,7 @@ class CompanyController extends Controller
             'registry_info' => 'nullable|string|max:255',
             'insurance_amount' => 'required|numeric|min:0',
             'number_pagare' => 'required|integer|min:0',
+            'client_type_config' => 'required|string|in:Ambos,Personal,Grupo',
             'logo' => 'nullable|image|max:2048',
             'permissions' => 'nullable|array',
         ]);
@@ -118,6 +119,7 @@ class CompanyController extends Controller
             'registry_info' => 'nullable|string|max:255',
             'insurance_amount' => 'required|numeric|min:0',
             'number_pagare' => 'required|integer|min:0',
+            'client_type_config' => 'required|string|in:Ambos,Personal,Grupo',
             'logo' => 'nullable|image|max:2048',
             'permissions' => 'nullable|array',
         ]);

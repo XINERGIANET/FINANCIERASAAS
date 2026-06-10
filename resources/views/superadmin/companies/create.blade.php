@@ -82,6 +82,18 @@
             </div>
 
             <div class="mb-3">
+                <label class="form-label required">Tipo de cliente por defecto en Contratos</label>
+                <select class="form-select @error('client_type_config') is-invalid @enderror" name="client_type_config" required>
+                    <option value="Ambos" {{ old('client_type_config') == 'Ambos' ? 'selected' : '' }}>Permitir Ambos (Personal y Grupo)</option>
+                    <option value="Personal" {{ old('client_type_config') == 'Personal' ? 'selected' : '' }}>Solo Personal</option>
+                    <option value="Grupo" {{ old('client_type_config') == 'Grupo' ? 'selected' : '' }}>Solo Grupo</option>
+                </select>
+                @error('client_type_config')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <div class="mb-3">
                 <label class="form-label">Logotipo de la Financiera</label>
                 <input type="file" class="form-control @error('logo') is-invalid @enderror" name="logo" accept="image/*">
                 <small class="text-muted">Recomendado: imagen PNG con fondo transparente.</small>

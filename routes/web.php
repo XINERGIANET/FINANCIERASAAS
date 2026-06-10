@@ -51,6 +51,7 @@ Route::middleware('auth')->group(function () {
 	Route::get('clients/inactive/excel', [ClientController::class, 'inactiveExcel'])->name('clients.inactive.excel');
 	Route::get('clients/inactive', [ClientController::class, 'inactive'])->name('clients.inactive');
 	Route::get('clients/excel', [ClientController::class, 'excel'])->name('clients.excel');
+	Route::put('clients/update', [ClientController::class, 'update'])->name('clients.update');
 	Route::get('clients', [ClientController::class, 'index'])->name('clients.index');
 
 	Route::get('contracts/api', [ContractController::class, 'api'])->name('contracts.api');

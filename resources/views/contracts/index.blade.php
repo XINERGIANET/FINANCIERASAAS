@@ -72,7 +72,7 @@
                         <th>% de interés</th>
                         <th>interés</th>
                         <th>Monto a pagar</th>
-                        <th>Monto seguro</th>
+                        {{-- <th>Monto seguro</th> --}}
                         <th>Fecha de prestamo</th>
                         <th>Tipo de cuotas</th>
                         <th>Estado</th>
@@ -93,7 +93,7 @@
                                 <td>{{ $contract->percentage }}%</td>
                                 <td>S/ {{ number_format($contract->interest, 1) }}</td>
                                 <td>S/ {{ number_format($contract->payable_amount, 1) }}</td>
-                                <td>S/ {{ number_format($contract->insurance_amount, 1) }}</td>
+                                {{-- <td>S/ {{ number_format($contract->insurance_amount, 1) }}</td> --}}
                                 <td>{{ $contract->date->format('d/m/Y') }}</td>
                                 <td>
                                     {{ $contract->quota_type }}
@@ -128,8 +128,12 @@
                                                     <i class="ti ti-check icon"></i>
                                                 </button>
                                             @endif
-                                            <button class="btn btn-icon btn-warning btn-edit" data-id="{{ $contract->id }}"
-                                                title="Editar">
+                                            @php
+                                                $hasPaidQuotas = clone $contract->quotas;
+                                                $hasPaidQuotas = $hasPaidQuotas->where('paid', '>', 0)->count() > 0 || $contract->paid > 0;
+                                            @endphp
+                                            <button class="btn btn-icon {{ $hasPaidQuotas ? 'btn-secondary' : 'btn-warning' }} btn-edit" data-id="{{ $contract->id }}"
+                                                title="{{ $hasPaidQuotas ? 'No se puede editar, tiene cuotas pagadas' : 'Editar' }}" {{ $hasPaidQuotas ? 'disabled' : '' }}>
                                                 <i class="ti ti-edit icon"></i>
                                             </button>
                                             <button class="btn btn-icon btn-danger btn-delete"
@@ -161,6 +165,7 @@
         <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
             <div class="modal-content">
                 <form novalidate id="storeForm" method="POST">
+                    <input type="hidden" id="contract_id" name="contract_id">
                     <div class="modal-header">
                         <h5 class="modal-title">Crear nuevo</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -174,8 +179,15 @@
                                 <div class="mb-3">
                                     <label class="form-label required">Tipo de cliente</label>
                                     <select class="form-select" name="client_type" id="client_type">
-                                        <option value="Personal">Personal</option>
-                                        <option value="Grupo">Grupo</option>
+                                        @php
+                                            $configType = auth()->user()->company->client_type_config ?? 'Ambos';
+                                        @endphp
+                                        @if($configType == 'Ambos' || $configType == 'Personal')
+                                            <option value="Personal">Personal</option>
+                                        @endif
+                                        @if($configType == 'Ambos' || $configType == 'Grupo')
+                                            <option value="Grupo">Grupo</option>
+                                        @endif
                                     </select>
                                 </div>
                             </div>
@@ -445,48 +457,7 @@
                     </div>
                 </form>
             </div>
-        </div>
-    </div>
-    <!--Que solo se pueda editar el asesor, nombre y las cuotas-->
-    <div class="modal modal-blur fade" id="editModal" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content">
-                <form id="editForm" method="POST">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Editar</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-lg-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Nombre</label>
-                                    <input type="text" class="form-control" name="name" id="editName"
-                                        autocomplete="off">
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Asesor comercial</label>
-                                    <select class="form-select" name="seller_id" id="editSeller">
-                                        <option value="">Seleccionar</option>
-                                        @foreach ($sellers as $seller)
-                                            <option value="{{ $seller->id }}">{{ $seller->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <input type="hidden" id="editId">
-                        <button type="button" class="btn me-auto" data-bs-dismiss="modal"><i class="ti ti-x icon"></i>
-                            Cerrar</button>
-                        <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy icon"></i>
-                            Guardar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
+            <!-- Edit Modal was removed, using createModal instead -->  </div>
     </div>
 
     <div class="modal modal-blur fade" id="quotasModal" tabindex="-1" role="dialog" aria-hidden="true">
@@ -553,10 +524,16 @@
                 $('#createModal').modal('show');
             }
 
-            // Limpiar selects cuando se abre el modal
-            $('#createModal').on('shown.bs.modal', function() {
-                $('#province_id').html('<option value="">Seleccionar</option>');
-                $('#district_id').html('<option value="">Seleccionar</option>');
+            // Limpiar selects cuando se abre el modal para crear nuevo
+            $('#createModal').on('show.bs.modal', function(e) {
+                if (e.relatedTarget && !$(e.relatedTarget).hasClass('btn-edit')) {
+                    $('#storeForm')[0].reset();
+                    $('#contract_id').val('');
+                    $('#createModal .modal-title').text('Crear nuevo');
+                    $('#client_type').trigger('change');
+                    $('#province_id').html('<option value="">Seleccionar</option>');
+                    $('#district_id').html('<option value="">Seleccionar</option>');
+                }
             });
 
 
@@ -916,14 +893,19 @@
                 return;
             }
 
+            var isEdit = $('#contract_id').val() != '';
+            var url = isEdit ? '{{ route('contracts.index') }}/' + $('#contract_id').val() : '{{ route('contracts.store') }}';
+            var method = isEdit ? 'PUT' : 'POST';
+
             $.ajax({
-                url: '{{ route('contracts.store') }}',
-                method: 'POST',
+                url: url,
+                method: method,
                 data: $(this).serialize(),
                 success: function(data) {
                     if (data.status) {
                         $('#createModal').modal('hide');
                         $('#storeForm')[0].reset();
+                        $('#contract_id').val('');
                         // Limpiar selects de provincia y distrito
                         $('#province_id').html('<option value="">Seleccionar</option>');
                         $('#district_id').html('<option value="">Seleccionar</option>');
@@ -935,14 +917,14 @@
 
                     } else {
                         ToastError.fire({
-                            text: data.error ? data.error : 'OcurriÃ³ un error'
+                            text: data.error ? data.error : 'Ocurrió un error'
                         });
                         $('#btn-save').prop('disabled', false);
                     }
                 },
                 error: function(err) {
                     ToastError.fire({
-                        text: 'OcurriÃ³ un error'
+                        text: 'Ocurrió un error'
                     });
                     $('#btn-save').prop('disabled', false);
                 }
@@ -960,59 +942,90 @@
 
 
         $(document).on('click', '.btn-edit', function() {
-
             var id = $(this).data('id');
 
             $.ajax({
                 url: '{{ route('contracts.index') }}' + '/' + id + '/edit/',
                 method: 'GET',
                 success: function(data) {
-                    $('#editName').val(data.name);
-                    $('#editSeller').val(data.seller_id);
-                    $('#editId').val(data.id);
-                    $('#editModal').modal('show');
-                },
-                error: function(err) {
-                    ToastError.fire({
-                        text: 'OcurriÃ³ un error'
-                    });
-                }
-            });
+                    $('#storeForm')[0].reset();
+                    $('#contract_id').val(data.id);
+                    $('#createModal .modal-title').text('Editar');
 
-        });
+                    $('#client_type').val(data.client_type).trigger('change');
 
-        $('#editForm').submit(function(e) {
-            e.preventDefault();
+                    if(data.client_type == 'Personal') {
+                        var tomSelectDoc = document.getElementById('document').tomselect;
+                        if(tomSelectDoc) {
+                            tomSelectDoc.addOption({document: data.document, name: data.name});
+                            tomSelectDoc.setValue(data.document);
+                        } else {
+                            $('#document').val(data.document);
+                        }
 
-            var id = $('#editId').val();
+                        $('#name').val(data.name);
+                        $('#phone').val(data.phone);
+                        $('#address').val(data.address);
+                        $('#reference').val(data.reference);
+                        $('#home_type').val(data.home_type);
+                        $('#business_line').val(data.business_line);
+                        $('#business_address').val(data.business_address);
+                        if(data.business_start_date) {
+                            $('#business_start_date').val(data.business_start_date.split('T')[0]);
+                        }
+                        $('#civil_status').val(data.civil_status).trigger('change');
+                        $('#husband_name').val(data.husband_name);
+                        $('#husband_document').val(data.husband_document);
 
-            $.ajax({
-                url: '{{ route('contracts.index') }}' + '/' + id + '',
-                method: 'PATCH',
-                data: $(this).serialize(),
-                success: function(data) {
-                    if (data.status) {
-                        $('#editModal').modal('hide');
-                        $('#editForm')[0].reset();
-
-                        ToastMessage.fire({
-                                text: 'Registro actualizado'
-                            })
-                            .then(() => location.reload());
-
+                        if(data.district) {
+                            $('#department_id').val(data.district.province.department_id);
+                            $('#province_id').html('<option value="'+data.district.province_id+'">'+data.district.province.name+'</option>');
+                            $('#district_id').html('<option value="'+data.district_id+'">'+data.district.name+'</option>');
+                        } else {
+                            $('#department_id').val('');
+                            $('#province_id').html('<option value="">Seleccionar</option>');
+                            $('#district_id').html('<option value="">Seleccionar</option>');
+                        }
                     } else {
-                        ToastError.fire({
-                            text: data.error ? data.error : 'Ocurrio un error'
-                        });
+                        if (data.group_name) {
+                            $('#group_name').val(data.group_name.replace(/Grupo \d+ - /, ''));
+                        }
+                        if(data.people) {
+                            var people = JSON.parse(data.people);
+                            var $baseRow = $('#divGroup .row').first();
+                            $('#divGroup .row:not(:first)').remove();
+                            
+                            people.forEach(function(person, index) {
+                                var $row = (index === 0) ? $baseRow : $baseRow.clone().appendTo('#divGroup');
+                                $row.find('input[name="documents[]"]').val(person.document);
+                                $row.find('input[name="names[]"]').val(person.name);
+                                $row.find('input[name="addresses[]"]').val(person.address);
+                            });
+                        }
                     }
+
+                    $('select[name="seller_id"]').val(data.seller_id);
+                    $('select[name="advisor_id"]').val(data.advisor_id);
+                    $('#requested_amount').val(data.requested_amount);
+                    $('#months_number').val(data.months_number);
+                    $('select[name="type_quota"]').val(data.type_quota);
+                    if(data.date) $('#date').val(data.date.split('T')[0]);
+                    $('#interest').val(data.percentage);
+                    
+                    // We need to calculate base insurance per month to match what the form expects
+                    // Form expects insurance_cost per month, but DB stores total insurance_amount
+                    var quotas = data.months_number; // In update, months_number is exactly the total months
+                    var insurance_per_month = quotas > 0 ? (data.insurance_amount / quotas).toFixed(2) : data.insurance_amount;
+                    $('#insurance_cost').val(insurance_per_month);
+
+                    $('#createModal').modal('show');
                 },
                 error: function(err) {
                     ToastError.fire({
-                        text: 'Ocurrio un error'
+                        text: 'Ocurrió un error al cargar los datos.'
                     });
                 }
             });
-
         });
 
         $(document).on('click', '.btn-delete', function() {
@@ -1104,6 +1117,9 @@
 
             }
         });
+        
+        // Trigger initial change based on default value
+        $('#client_type').trigger('change');
 
         $('#btn-add').click(function() {
             var $baseRow = $('#divGroup .row').first();

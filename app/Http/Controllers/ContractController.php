@@ -37,7 +37,7 @@ class ContractController extends Controller
             return $query->whereDate('date', '>=', $start_date);
         })->when($request->end_date, function ($query, $end_date) {
             return $query->whereDate('date', '<=', $end_date);
-        })->latest('date')->latest('id')->paginate(20);
+        })->with('quotas')->latest('date')->latest('id')->paginate(20);
 
         // Mapear el tipo de cuota numérico a texto legible
         $quotaTypeMap = [1 => 'Semanal', 2 => 'Quincenal', 4 => 'Mensual'];
@@ -380,31 +380,221 @@ class ContractController extends Controller
 
     public function edit(Request $request, Contract $contract)
     {
+        $contract->load('district.province.department');
         return response()->json($contract);
     }
 
     public function update(Request $request, Contract $contract)
     {
+        if ($contract->quotas()->where('paid', '>', 0)->exists() || $contract->paid > 0) {
+            return response()->json([
+                'status' => false,
+                'error' => 'No se puede editar porque ya tiene cuotas pagadas.'
+            ]);
+        }
+
         $validator = Validator::make($request->all(), [
-            'name' => 'nullable|string',
-            'seller_id' => 'required|exists:users,id',
+            'client_type' => 'required',
+            'documents.*' => 'nullable|size:8|distinct',
+            'names.*' => 'nullable|distinct',
+            'addresses.*' => 'nullable',
+            'address.*' => 'required',
+            'document' => 'nullable|size:8',
+            'name' => 'nullable',
+            'group_name' => 'nullable',
+            'phone' => 'nullable',
+            'reference' => 'nullable',
+            'address' => 'nullable',
+            'home_type' => 'nullable',
+            'business_start_date' => 'nullable|date',
+            'civil_status' => 'nullable',
+            'husband_name' => 'nullable',
+            'husband_document' => 'nullable|size:8',
+            'seller_id' => 'required',
             'advisor_id' => 'nullable|exists:advisors,id',
+            'requested_amount' => 'required|numeric',
+            'months_number' => 'required|numeric|min:1',
+            'date' => 'required|date',
+            'interest' => 'nullable|numeric',
+            'type_quota' => 'required|in:1,2',
+            'insurance_cost' => 'required|numeric|min:0',
         ]);
+
+        $validator->sometimes(['document', 'name', 'phone', 'reference'], 'required', function ($request) {
+            return $request->client_type == 'Personal';
+        });
+
+        $validator->sometimes(['group_name', 'documents.*', 'names.*', 'addresses.*'], 'required', function ($request) {
+            return $request->client_type == 'Grupo';
+        });
+
+        $validator->sometimes(['husband_name', 'husband_document'], 'required', function ($request) {
+            return $request->civil_status == 'Casado';
+        });
+
+        $validator->after(function ($validator) use ($request, $contract) {
+            $user = auth()->user();
+
+            if (!$user || !$user->hasRole('seller')) {
+                return;
+            }
+
+            // Evitar contratos paralelos
+            if ($request->client_type === 'Personal' && $request->document) {
+                $exists = Contract::active()
+                    ->where('paid', 0)
+                    ->where('document', $request->document)
+                    ->where('id', '!=', $contract->id)
+                    ->exists();
+
+                if ($exists) {
+                    $validator->errors()->add('document', 'Este cliente ya tiene un contrato activo. No se permite crear contratos paralelos.');
+                }
+            }
+
+            if ($request->client_type === 'Grupo' && is_array($request->documents) && count($request->documents) > 0) {
+                $docs = array_values(array_filter($request->documents));
+
+                if (count($docs) === 0) {
+                    return;
+                }
+
+                $query = Contract::active()->where('paid', 0)->where('id', '!=', $contract->id)->where(function ($q) use ($docs) {
+                    $q->whereIn('document', $docs);
+                    foreach ($docs as $doc) {
+                        $q->orWhere('people', 'like', '%"document":"' . $doc . '"%');
+                    }
+                });
+
+                if ($query->exists()) {
+                    $validator->errors()->add('documents', 'Uno o más integrantes ya tienen un contrato activo. No se permite crear contratos paralelos.');
+                }
+            }
+        });
 
         if ($validator->fails()) {
             return response()->json([
                 'status' => false,
-                'error' => $validator->errors()->first(),
+                'error' => $validator->errors()->first()
             ]);
         }
 
-        $contract->update([
-            'name' => $request->name ?? $contract->name,
-            'seller_id' => $request->seller_id,
-            'advisor_id' => $request->advisor_id ?: null,
-        ]);
+        DB::beginTransaction();
 
-        return response()->json(['status' => true]);
+        try {
+            $interest_percentage = floatval($request->interest);
+            $type_quota = (int) $request->type_quota;
+            $quotas = $request->months_number;
+            $quotas_rounded = ceil($quotas);
+
+            $quotasPerMonthMap = [1 => 4, 2 => 2];
+            $quotasPerMonth = isset($quotasPerMonthMap[$type_quota]) ? $quotasPerMonthMap[$type_quota] : 4;
+            $months = $quotas / $quotasPerMonth;
+
+            $insurance_cost = floatval($request->insurance_cost) * $months;
+            $insurance_cost = round($insurance_cost * 10) / 10;
+            $percentage = $interest_percentage;
+            $interest = $request->requested_amount * ($interest_percentage / 100);
+            $payable_amount = $request->requested_amount + $interest + $insurance_cost;
+
+            $quota_base = $payable_amount / $quotas;
+            $quota = ceil($quota_base * 10) / 10;
+            $total_first_quotas = $quota * ($quotas_rounded - 1);
+            $last_quota = $payable_amount - $total_first_quotas;
+            $last_quota = round($last_quota * 10) / 10;
+
+            $date = Carbon::parse($request->date);
+            $quota_dates = [];
+            for ($i = 1; $i <= $quotas_rounded; $i++) {
+                if ($type_quota === 1) {
+                    $quota_date = $date->copy()->addWeeks($i);
+                } elseif ($type_quota === 2) {
+                    $quota_date = $date->copy()->addDays($i * 15);
+                } else {
+                    $quota_date = $date->copy()->addWeeks($i);
+                }
+                $quota_amount = ($i == $quotas_rounded) ? $last_quota : $quota;
+                $quota_dates[] = [
+                    'number' => $i,
+                    'date' => $quota_date->format('Y-m-d'),
+                    'amount' => $quota_amount
+                ];
+            }
+
+            $contract->client_type = $request->client_type;
+            if ($request->client_type == 'Personal') {
+                $contract->document = $request->document;
+                $contract->name = $request->name;
+                $contract->phone = $request->phone;
+                $contract->address = $request->address;
+                $contract->district_id = $request->district_id;
+                $contract->reference = $request->reference;
+                $contract->home_type = $request->home_type ?: '';
+                $contract->business_line = $request->business_line ?: '';
+                $contract->business_address = $request->business_address ?: '';
+                $contract->business_start_date = $request->business_start_date;
+                $contract->civil_status = $request->civil_status ?: '';
+                $contract->husband_name = $request->husband_name ?: '';
+                $contract->husband_document = $request->husband_document ?: '';
+            } elseif ($request->client_type == 'Grupo') {
+                $people = [];
+                for ($i = 0; $i < count($request->documents); $i++) {
+                    $people[] = [
+                        'document' => $request->documents[$i],
+                        'name' => $request->names[$i],
+                        'address' => $request->addresses[$i],
+                    ];
+                }
+                if(!$contract->group_name) {
+                    $group_number = DB::table('settings')->selectRaw('group_number + 1 AS number')->pluck('number')->first();
+                    $contract->group_name = "Grupo {$group_number} - " . $request->group_name;
+                    DB::table('settings')->update(['group_number' => $group_number]);
+                } else {
+                    // Update only the right part of the name if needed, but it's easier to just keep the number
+                    $parts = explode(' - ', $contract->group_name, 2);
+                    if(count($parts) > 1) {
+                        $contract->group_name = $parts[0] . ' - ' . $request->group_name;
+                    } else {
+                        $contract->group_name = $request->group_name;
+                    }
+                }
+                $contract->people = json_encode($people);
+            }
+
+            $contract->seller_id = $request->seller_id;
+            $contract->advisor_id = $request->advisor_id ?: null;
+            $contract->requested_amount = $request->requested_amount;
+            $contract->months_number = $months;
+            $contract->quotas_number = $quotas_rounded;
+            $contract->percentage = $percentage;
+            $contract->interest = $interest;
+            $contract->payable_amount = $payable_amount;
+            $contract->quota_amount = $quota;
+            $contract->insurance_amount = $insurance_cost;
+            $contract->date = $request->date;
+            $contract->first_payment_date = reset($quota_dates)['date'];
+            $contract->last_payment_date = end($quota_dates)['date'];
+            $contract->type_quota = $type_quota;
+
+            $contract->save();
+
+            if ($contract->approved) {
+                $contract->quotas()->delete();
+                $this->createQuotas($contract);
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        return response()->json([
+            'status' => true
+        ]);
     }
 
     private function createQuotas(Contract $contract)
