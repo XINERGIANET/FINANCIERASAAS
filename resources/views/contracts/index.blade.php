@@ -10,6 +10,24 @@
         </ol>
     </nav>
 
+    @if (session('success'))
+        <div class="alert alert-success alert-dismissible" role="alert">
+            <div>{{ session('success') }}</div>
+            <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
+        </div>
+    @endif
+
+    @if (session('import_errors'))
+        <div class="alert alert-danger" role="alert">
+            <strong>No se completó la importación. Revise estos errores:</strong>
+            <ul class="mb-0 mt-2">
+                @foreach (session('import_errors') as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="card">
         <div class="card-header">
 
@@ -19,6 +37,14 @@
             <button class="btn btn-success ms-2" id="btn-excel">
                 <i class="ti ti-file-export icon"></i> Excel
             </button>
+            @if (!auth()->user()->hasRole('seller'))
+                <a href="{{ route('contracts.import.template') }}" class="btn btn-outline-success ms-2">
+                    <i class="ti ti-download icon"></i> Plantilla Excel
+                </a>
+                <button class="btn btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#importModal">
+                    <i class="ti ti-upload icon"></i> Importar Excel
+                </button>
+            @endif
         </div>
         <div class="card-body border-bottom">
             <form>
@@ -459,6 +485,51 @@
             </div>
             <!-- Edit Modal was removed, using createModal instead -->  </div>
     </div>
+
+    @if (!auth()->user()->hasRole('seller'))
+        <div class="modal modal-blur fade" id="importModal" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <form method="POST" action="{{ route('contracts.import.store') }}" enctype="multipart/form-data">
+                        @csrf
+                        <div class="modal-header">
+                            <h5 class="modal-title">Importar Excel de contratos</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-info">
+                                <strong>Plantilla soportada:</strong> CLIENTES, CONTRATOS, INTEGRANTES, CUOTAS y PAGOS.
+                                Descargue primero la plantilla para respetar los encabezados obligatorios/opcionales.
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label required">Archivo Excel</label>
+                                <input type="file" name="file" class="form-control @error('file') is-invalid @enderror" accept=".xlsx,.xls" required>
+                                @error('file')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <ul class="small text-muted mb-0 ps-3">
+                                <li><strong>CONTRATOS</strong> es obligatorio.</li>
+                                <li><strong>INTEGRANTES</strong> es obligatorio para contratos tipo Grupo.</li>
+                                <li><strong>CUOTAS</strong> y <strong>PAGOS</strong> son opcionales si el sistema puede generarlos.</li>
+                            </ul>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn me-auto" data-bs-dismiss="modal">
+                                <i class="ti ti-x icon"></i> Cerrar
+                            </button>
+                            <a href="{{ route('contracts.import.template') }}" class="btn btn-outline-success">
+                                <i class="ti ti-download icon"></i> Descargar plantilla
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ti ti-upload icon"></i> Importar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <div class="modal modal-blur fade" id="quotasModal" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-centered" role="document">

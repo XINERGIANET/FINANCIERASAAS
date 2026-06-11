@@ -37,7 +37,7 @@
             </div>
             <div class="card-body">
                 <p class="text-muted">
-                    Suba un Excel con las hojas <strong>CLIENTES</strong> (opcional), <strong>CONTRATOS</strong>, <strong>CUOTAS</strong> y <strong>PAGOS</strong>.
+                    Suba un Excel con las hojas <strong>CLIENTES</strong> (opcional), <strong>CONTRATOS</strong>, <strong>INTEGRANTES</strong>, <strong>CUOTAS</strong> y <strong>PAGOS</strong>.
                     Los datos quedarán solo en esta financiera.
                 </p>
 
@@ -73,6 +73,7 @@
                     <li class="mb-2"><strong>INSTRUCCIONES</strong> — guía (no se importa)</li>
                     <li class="mb-2"><strong>CLIENTES</strong> — datos del cliente (opcional)</li>
                     <li class="mb-2"><strong>CONTRATOS</strong> — préstamos (obligatorio)</li>
+                    <li class="mb-2"><strong>INTEGRANTES</strong> — miembros de contratos grupales</li>
                     <li class="mb-2"><strong>CUOTAS</strong> — cronograma histórico</li>
                     <li><strong>PAGOS</strong> — cobros ya realizados</li>
                 </ol>

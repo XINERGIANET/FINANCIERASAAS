@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Exports\ContractsExport;
 use App\Exports\EndingContractsExport;
+use App\Exports\ImportTemplateExport;
 use App\Exports\SentinelExport;
 use App\Models\Config;
 use Maatwebsite\Excel\Facades\Excel;
@@ -17,6 +18,7 @@ use App\Models\Quota;
 use App\Models\User;
 use App\Models\Pdf as PdfModel;
 use App\Models\Department;
+use App\Services\CompanyDataImportService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -114,6 +116,42 @@ class ContractController extends Controller
     {
         $name = "Contratos_" . now()->format('d_m_Y') . ".xlsx";
         return Excel::download(new ContractsExport, $name);
+    }
+
+    public function importTemplate()
+    {
+        $name = 'plantilla_importacion_contratos.xlsx';
+
+        return Excel::download(new ImportTemplateExport(), $name);
+    }
+
+    public function importStore(Request $request, CompanyDataImportService $importService)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls|max:10240',
+        ]);
+
+        $companyId = auth()->user()->company_id;
+        if (!$companyId) {
+            return back()->with('import_errors', ['La financiera del usuario no esta configurada.']);
+        }
+
+        $result = $importService->import($companyId, $request->file('file')->getRealPath());
+
+        if (!$result['success']) {
+            return back()
+                ->withInput()
+                ->with('import_errors', $result['errors'])
+                ->with('import_stats', $result['stats']);
+        }
+
+        return redirect()
+            ->route('contracts.index')
+            ->with('success', 'Importacion completada: '
+                . $result['stats']['clientes'] . ' clientes, '
+                . $result['stats']['contratos'] . ' contratos, '
+                . $result['stats']['cuotas'] . ' cuotas, '
+                . $result['stats']['pagos'] . ' pagos.');
     }
 
     public function store(Request $request)

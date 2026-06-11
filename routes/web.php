@@ -59,6 +59,8 @@ Route::middleware('auth')->group(function () {
 	Route::get('contracts/ending', [ContractController::class, 'ending'])->name('contracts.ending');
 	Route::get('contracts/ending/excel', [ContractController::class, 'endingExcel'])->name('contracts.ending.excel');
 	Route::get('contracts/sentinel/excel', [ContractController::class, 'sentinelExcel'])->name('contracts.sentinel.excel');
+	Route::get('contracts/import/template', [ContractController::class, 'importTemplate'])->name('contracts.import.template');
+	Route::post('contracts/import', [ContractController::class, 'importStore'])->name('contracts.import.store');
 	Route::get('contracts/{contract}/pdf', [ContractController::class, 'pdf'])->name('contracts.pdf');
 	Route::get('contracts/{contract}/pdfPersonal', [ContractController::class, 'pdfPersonal'])->name('contracts.pdfPersonal');
 	Route::get('contracts/excel', [ContractController::class, 'excel'])->name('contracts.excel');

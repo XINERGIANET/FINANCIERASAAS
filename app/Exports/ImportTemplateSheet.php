@@ -6,6 +6,7 @@ use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ImportTemplateSheet implements FromArray, WithTitle, ShouldAutoSize, WithStyles
@@ -33,12 +34,31 @@ class ImportTemplateSheet implements FromArray, WithTitle, ShouldAutoSize, WithS
     {
         if ($this->title === 'INSTRUCCIONES') {
             return [
-                1 => ['font' => ['bold' => true, 'size' => 12]],
+                1 => [
+                    'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => '1F4E78'],
+                    ],
+                ],
             ];
         }
 
         return [
-            1 => ['font' => ['bold' => true]],
+            1 => [
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => '2F5597'],
+                ],
+            ],
+            2 => [
+                'font' => ['italic' => true],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'FFF2CC'],
+                ],
+            ],
         ];
     }
 }

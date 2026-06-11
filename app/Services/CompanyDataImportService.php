@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Advisor;
 use App\Models\Company;
 use App\Models\Contract;
+use App\Models\District;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Models\Quota;
@@ -11,6 +13,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class CompanyDataImportService
@@ -18,6 +21,7 @@ class CompanyDataImportService
     private $companyId;
     private $company;
     private $clients = [];
+    private $groupPeople = [];
     private $contractMap = [];
     private $errors = [];
     private $stats = [
@@ -34,6 +38,7 @@ class CompanyDataImportService
         $this->errors = [];
         $this->stats = ['clientes' => 0, 'contratos' => 0, 'cuotas' => 0, 'pagos' => 0];
         $this->clients = [];
+        $this->groupPeople = [];
         $this->contractMap = [];
 
         $spreadsheet = IOFactory::load($filePath);
@@ -50,11 +55,16 @@ class CompanyDataImportService
                 $this->loadClients($this->rowsFromSheet($sheets['CLIENTES']));
             }
 
+            if (isset($sheets['INTEGRANTES'])) {
+                $this->loadGroupPeople($this->rowsFromSheet($sheets['INTEGRANTES']));
+            }
+
             if (!isset($sheets['CONTRATOS'])) {
                 throw new Exception('La hoja CONTRATOS es obligatoria.');
             }
 
             $this->importContracts($this->rowsFromSheet($sheets['CONTRATOS']));
+            $this->validateGroupPeopleReferences();
 
             if (isset($sheets['CUOTAS'])) {
                 $this->importQuotas($this->rowsFromSheet($sheets['CUOTAS']));
@@ -131,7 +141,11 @@ class CompanyDataImportService
 
         foreach ($headerRow as $cell) {
             $key = strtolower(trim((string) $cell));
-            $key = str_replace([' ', '-'], '_', $key);
+            $key = preg_replace('/\s*\(.*\)$/u', '', $key);
+            $key = Str::ascii($key);
+            $key = str_replace([' ', '-', '.', '/'], '_', $key);
+            $key = preg_replace('/_+/', '_', $key);
+            $key = trim($key, '_');
             $headers[] = $key ?: null;
         }
 
@@ -157,12 +171,39 @@ class CompanyDataImportService
         foreach ($rows as $row) {
             $document = $this->onlyDigits($row['documento'] ?? '');
             if ($document === '') {
-                $this->errors[] = 'CLIENTES fila ' . $row['_line'] . ': documento vacío.';
+                $this->errors[] = 'CLIENTES fila ' . $row['_line'] . ': documento vacio.';
                 continue;
             }
 
             $this->clients[$document] = $row;
             $this->stats['clientes']++;
+        }
+    }
+
+    private function loadGroupPeople(array $rows): void
+    {
+        foreach ($rows as $row) {
+            $line = $row['_line'];
+            $importCode = strtoupper(trim($row['codigo_contrato'] ?? ''));
+
+            if ($importCode === '') {
+                $this->errors[] = 'INTEGRANTES fila ' . $line . ': codigo_contrato es obligatorio.';
+                continue;
+            }
+
+            $document = $this->onlyDigits($row['documento'] ?? '');
+            $name = trim($row['nombre_completo'] ?? '');
+
+            if ($document === '' || $name === '') {
+                $this->errors[] = 'INTEGRANTES fila ' . $line . ': documento y nombre_completo son obligatorios.';
+                continue;
+            }
+
+            $this->groupPeople[$importCode][] = [
+                'document' => $document,
+                'name' => $name,
+                'address' => trim($row['direccion'] ?? ''),
+            ];
         }
     }
 
@@ -185,10 +226,17 @@ class CompanyDataImportService
                 continue;
             }
 
-            $document = $this->onlyDigits($row['documento_cliente'] ?? '');
-            $client = $this->clients[$document] ?? [];
+            $clientType = ucfirst(strtolower(trim($row['tipo_cliente'] ?? 'Personal')));
+            if (!in_array($clientType, ['Personal', 'Grupo'], true)) {
+                $this->errors[] = 'CONTRATOS fila ' . $line . ': tipo_cliente invalido. Use Personal o Grupo.';
+                continue;
+            }
 
-            $seller = $this->resolveSeller($row['asesor_usuario'] ?? ($client['asesor_usuario'] ?? ''), $line, 'CONTRATOS');
+            $document = $this->onlyDigits($row['documento_cliente'] ?? '');
+            $client = $document !== '' ? ($this->clients[$document] ?? []) : [];
+
+            $sellerUsername = trim($row['asesor_usuario'] ?? ($client['asesor_usuario'] ?? ''));
+            $seller = $this->resolveSeller($sellerUsername, $line, 'CONTRATOS');
             if (!$seller) {
                 continue;
             }
@@ -205,19 +253,27 @@ class CompanyDataImportService
 
             $requested = $this->toFloat($row['monto_solicitado'] ?? '0');
             $quotasNumber = (int) ceil($this->toFloat($row['numero_cuotas'] ?? '0'));
+            $interestPercentage = $this->toFloat($row['porcentaje_interes'] ?? '0');
             $interest = $this->toFloat($row['monto_interes'] ?? '0');
             $insurance = $this->toFloat($row['monto_seguro'] ?? '0');
             $payable = $this->toFloat($row['monto_a_pagar'] ?? '0');
             $quotaAmount = $this->toFloat($row['monto_cuota'] ?? '0');
-            $percentage = $this->toFloat($row['porcentaje_interes'] ?? '0');
 
             if ($requested <= 0 || $quotasNumber <= 0) {
                 $this->errors[] = 'CONTRATOS fila ' . $line . ': monto_solicitado y numero_cuotas deben ser mayores a 0.';
                 continue;
             }
 
+            if ($interest <= 0 && $interestPercentage > 0) {
+                $interest = round($requested * ($interestPercentage / 100), 2);
+            }
+
+            if ($interestPercentage <= 0 && $requested > 0 && $interest > 0) {
+                $interestPercentage = round(($interest * 100) / $requested, 2);
+            }
+
             if ($payable <= 0) {
-                $payable = $requested + $interest + $insurance;
+                $payable = round($requested + $interest + $insurance, 2);
             }
 
             if ($quotaAmount <= 0 && $quotasNumber > 0) {
@@ -228,38 +284,100 @@ class CompanyDataImportService
             if ($pagare === '') {
                 $this->company->number_pagare = (int) $this->company->number_pagare + 1;
                 $this->company->save();
-                $pagare = $this->company->number_pagare;
+                $pagare = (string) $this->company->number_pagare;
             }
 
-            $clientType = ucfirst(strtolower(trim($row['tipo_cliente'] ?? 'Personal')));
-            if (!in_array($clientType, ['Personal', 'Grupo'], true)) {
-                $clientType = 'Personal';
+            $businessStartDate = null;
+            if (trim($row['business_start_date'] ?? '') !== '') {
+                $parsedBusinessStart = $this->parseDate($row['business_start_date'], $line, 'CONTRATOS');
+                if (!$parsedBusinessStart) {
+                    continue;
+                }
+                $businessStartDate = $parsedBusinessStart->format('Y-m-d');
             }
 
-            $name = strtoupper(trim($row['nombre_completo'] ?? ($client['nombre_completo'] ?? '')));
-            if ($name === '' && $document !== '') {
-                $name = 'CLIENTE ' . $document;
+            $advisor = $this->resolveAdvisor(
+                trim($row['advisor_id'] ?? ''),
+                trim($row['asesor_credito'] ?? ($row['advisor_nombre'] ?? '')),
+                $line
+            );
+            if ($advisor === false) {
+                continue;
             }
+
+            $district = $this->resolveDistrict(
+                trim($row['district_id'] ?? ''),
+                trim($row['distrito'] ?? ''),
+                $line
+            );
+            if ($district === false) {
+                continue;
+            }
+
+            $reference = trim($row['reference'] ?? ($row['referencia'] ?? ($client['referencia'] ?? '')));
+            $homeType = trim($row['tipo_vivienda'] ?? ($row['home_type'] ?? ($client['tipo_vivienda'] ?? '')));
+            $phone = trim($row['telefono'] ?? ($row['phone'] ?? ($client['telefono'] ?? '')));
+            $address = trim($row['direccion'] ?? ($row['address'] ?? ($client['direccion'] ?? '')));
+            $civilStatus = trim($row['civil_status'] ?? ($row['estado_civil'] ?? ($client['estado_civil'] ?? '')));
+            $husbandName = trim($row['husband_name'] ?? ($row['nombre_conyuge'] ?? ($client['nombre_conyuge'] ?? '')));
+            $husbandDocument = $this->onlyDigits($row['husband_document'] ?? ($row['dni_conyuge'] ?? ($client['dni_conyuge'] ?? '')));
+            $name = trim($row['nombre_completo'] ?? ($row['name'] ?? ($client['nombre_completo'] ?? '')));
+            $groupName = trim($row['group_name'] ?? ($row['nombre_grupo'] ?? ''));
+
+            if ($clientType === 'Personal') {
+                if ($document === '') {
+                    $this->errors[] = 'CONTRATOS fila ' . $line . ': documento_cliente es obligatorio para cliente Personal.';
+                    continue;
+                }
+
+                if ($name === '') {
+                    $this->errors[] = 'CONTRATOS fila ' . $line . ': nombre_completo es obligatorio para cliente Personal.';
+                    continue;
+                }
+            }
+
+            if ($clientType === 'Grupo') {
+                if ($groupName === '') {
+                    $this->errors[] = 'CONTRATOS fila ' . $line . ': group_name es obligatorio para cliente Grupo.';
+                    continue;
+                }
+
+                $people = $this->groupPeople[$importCode] ?? [];
+                if (count($people) === 0) {
+                    $this->errors[] = 'CONTRATOS fila ' . $line . ': el contrato Grupo requiere filas en la hoja INTEGRANTES.';
+                    continue;
+                }
+            }
+
+            $approved = $this->toBool($row['aprobado'] ?? 'SI') ? 1 : 0;
+            $paid = $this->toBool($row['pagado_contrato'] ?? 'NO') ? 1 : 0;
 
             $contract = Contract::withoutGlobalScopes()->create([
                 'company_id' => $this->companyId,
                 'import_code' => $importCode,
                 'number_pagare' => $pagare,
                 'client_type' => $clientType,
-                'document' => $document,
-                'name' => $name,
-                'phone' => $row['telefono'] ?? ($client['telefono'] ?? ''),
-                'address' => $row['direccion'] ?? ($client['direccion'] ?? ''),
-                'reference' => $row['referencia'] ?? ($client['referencia'] ?? ''),
-                'home_type' => $row['tipo_vivienda'] ?? ($client['tipo_vivienda'] ?? ''),
-                'civil_status' => $row['estado_civil'] ?? ($client['estado_civil'] ?? ''),
-                'husband_name' => $row['nombre_conyuge'] ?? ($client['nombre_conyuge'] ?? ''),
-                'husband_document' => $this->onlyDigits($row['dni_conyuge'] ?? ($client['dni_conyuge'] ?? '')),
+                'group_name' => $clientType === 'Grupo' ? $groupName : null,
+                'people' => $clientType === 'Grupo' ? json_encode($this->groupPeople[$importCode] ?? []) : null,
+                'document' => $clientType === 'Personal' ? $document : null,
+                'name' => $clientType === 'Personal' ? $name : null,
+                'phone' => $clientType === 'Personal' ? $phone : null,
+                'address' => $clientType === 'Personal' ? $address : null,
+                'district_id' => $district ? $district->id : null,
+                'reference' => $clientType === 'Personal' ? $reference : null,
+                'home_type' => $clientType === 'Personal' ? $homeType : '',
+                'business_line' => $clientType === 'Personal' ? trim($row['business_line'] ?? '') : '',
+                'business_address' => $clientType === 'Personal' ? trim($row['business_address'] ?? '') : '',
+                'business_start_date' => $clientType === 'Personal' ? $businessStartDate : null,
+                'civil_status' => $clientType === 'Personal' ? $civilStatus : '',
+                'husband_name' => $clientType === 'Personal' ? $husbandName : '',
+                'husband_document' => $clientType === 'Personal' ? $husbandDocument : '',
                 'seller_id' => $seller->id,
+                'advisor_id' => $advisor ? $advisor->id : null,
                 'requested_amount' => $requested,
                 'months_number' => $this->monthsFromQuotas($quotasNumber, $typeQuota),
                 'quotas_number' => $quotasNumber,
-                'percentage' => $percentage,
+                'percentage' => $interestPercentage,
                 'interest' => $interest,
                 'insurance_amount' => $insurance,
                 'payable_amount' => $payable,
@@ -268,13 +386,22 @@ class CompanyDataImportService
                 'first_payment_date' => $loanDate->format('Y-m-d'),
                 'last_payment_date' => $loanDate->format('Y-m-d'),
                 'type_quota' => $typeQuota,
-                'approved' => $this->toBool($row['aprobado'] ?? 'SI') ? 1 : 0,
-                'paid' => $this->toBool($row['pagado_contrato'] ?? 'NO') ? 1 : 0,
+                'approved' => $approved,
+                'paid' => $paid,
                 'deleted' => 0,
             ]);
 
             $this->contractMap[$importCode] = $contract->id;
             $this->stats['contratos']++;
+        }
+    }
+
+    private function validateGroupPeopleReferences(): void
+    {
+        foreach ($this->groupPeople as $importCode => $rows) {
+            if (!isset($this->contractMap[$importCode])) {
+                $this->errors[] = 'INTEGRANTES: codigo_contrato "' . $importCode . '" no existe en CONTRATOS.';
+            }
         }
     }
 
@@ -286,7 +413,7 @@ class CompanyDataImportService
             $contractId = $this->contractMap[$importCode] ?? null;
 
             if (!$contractId) {
-                $this->errors[] = 'CUOTAS fila ' . $line . ': codigo_contrato "' . $importCode . '" no encontrado en esta importación.';
+                $this->errors[] = 'CUOTAS fila ' . $line . ': codigo_contrato "' . $importCode . '" no encontrado en esta importacion.';
                 continue;
             }
 
@@ -424,7 +551,8 @@ class CompanyDataImportService
                 continue;
             }
 
-            $dueDays = $row['dias_mora'] !== '' ? (int) $this->toFloat($row['dias_mora']) : null;
+            $dueDaysValue = trim($row['dias_mora'] ?? '');
+            $dueDays = $dueDaysValue !== '' ? (int) $this->toFloat($dueDaysValue) : null;
             if ($dueDays === null) {
                 $diff = $paymentDate->diffInDays(Carbon::parse($quota->date), false);
                 $dueDays = $diff < 0 ? abs($diff) : 0;
@@ -453,6 +581,11 @@ class CompanyDataImportService
         foreach ($this->contractMap as $contractId) {
             $contract = Contract::withoutGlobalScopes()->find($contractId);
             if (!$contract) {
+                continue;
+            }
+
+            $quotaCount = Quota::where('contract_id', $contractId)->count();
+            if ($quotaCount === 0) {
                 continue;
             }
 
@@ -492,7 +625,10 @@ class CompanyDataImportService
 
         $seller = User::withoutGlobalScopes()
             ->where('company_id', $this->companyId)
-            ->where('user', $username)
+            ->where(function ($query) use ($username) {
+                $query->whereRaw('LOWER(user) = ?', [Str::lower($username)])
+                    ->orWhereRaw('LOWER(name) = ?', [Str::lower($username)]);
+            })
             ->where('deleted', 0)
             ->whereIn('role', ['seller', 'admin', 'operations', 'credit'])
             ->first();
@@ -504,6 +640,74 @@ class CompanyDataImportService
         }
 
         return $seller;
+    }
+
+    private function resolveAdvisor(string $advisorId, string $advisorName, int $line)
+    {
+        $advisorId = trim($advisorId);
+        $advisorName = trim($advisorName);
+
+        if ($advisorId === '' && $advisorName === '') {
+            return null;
+        }
+
+        if ($advisorId !== '' && ctype_digit($advisorId)) {
+            $advisor = Advisor::withoutGlobalScopes()
+                ->where('company_id', $this->companyId)
+                ->where('id', (int) $advisorId)
+                ->first();
+
+            if ($advisor) {
+                return $advisor;
+            }
+        }
+
+        if ($advisorName !== '') {
+            $advisor = Advisor::withoutGlobalScopes()
+                ->where('company_id', $this->companyId)
+                ->where('deleted', 0)
+                ->whereRaw('LOWER(name) = ?', [Str::lower($advisorName)])
+                ->first();
+
+            if ($advisor) {
+                return $advisor;
+            }
+        }
+
+        $this->errors[] = 'CONTRATOS fila ' . $line . ': asesor de credito no encontrado.';
+
+        return false;
+    }
+
+    private function resolveDistrict(string $districtId, string $districtName, int $line)
+    {
+        $districtId = trim($districtId);
+        $districtName = trim($districtName);
+
+        if ($districtId === '' && $districtName === '') {
+            return null;
+        }
+
+        if ($districtId !== '' && ctype_digit($districtId)) {
+            $district = District::query()->find((int) $districtId);
+            if ($district) {
+                return $district;
+            }
+        }
+
+        if ($districtName !== '') {
+            $district = District::query()
+                ->whereRaw('LOWER(name) = ?', [Str::lower($districtName)])
+                ->first();
+
+            if ($district) {
+                return $district;
+            }
+        }
+
+        $this->errors[] = 'CONTRATOS fila ' . $line . ': distrito no encontrado.';
+
+        return false;
     }
 
     private function resolvePaymentMethod(string $name, int $line)
@@ -519,7 +723,7 @@ class CompanyDataImportService
             ->first();
 
         if (!$method) {
-            $this->errors[] = 'PAGOS fila ' . $line . ': método de pago "' . $name . '" no existe. Use Efectivo o YAPE.';
+            $this->errors[] = 'PAGOS fila ' . $line . ': metodo de pago "' . $name . '" no existe. Use Efectivo o YAPE.';
 
             return null;
         }
@@ -539,7 +743,7 @@ class CompanyDataImportService
         ];
 
         if (!isset($map[$value])) {
-            $this->errors[] = 'CONTRATOS fila ' . $line . ': tipo_cuota inválido. Use Semanal o Quincenal.';
+            $this->errors[] = 'CONTRATOS fila ' . $line . ': tipo_cuota invalido. Use Semanal o Quincenal.';
 
             return null;
         }
@@ -559,7 +763,7 @@ class CompanyDataImportService
         $value = trim($value);
         if ($value === '') {
             if ($line > 0) {
-                $this->errors[] = $sheet . ' fila ' . $line . ': fecha inválida o vacía.';
+                $this->errors[] = $sheet . ' fila ' . $line . ': fecha invalida o vacia.';
             }
 
             return null;
@@ -588,13 +792,28 @@ class CompanyDataImportService
     {
         $value = strtolower(trim($value));
 
-        return in_array($value, ['1', 'si', 'sí', 's', 'yes', 'true'], true);
+        return in_array($value, ['1', 'si', 'sí', 's', 'yes', 'true', 'y'], true);
     }
 
     private function toFloat(string $value): float
     {
-        $value = str_replace([' ', 'S/', 's/'], '', trim($value));
-        $value = str_replace(',', '.', $value);
+        $value = trim($value);
+        if ($value === '') {
+            return 0.0;
+        }
+
+        $value = preg_replace('/[^0-9,\.\-]/', '', $value);
+
+        if (str_contains($value, ',') && str_contains($value, '.')) {
+            if (strrpos($value, ',') > strrpos($value, '.')) {
+                $value = str_replace('.', '', $value);
+                $value = str_replace(',', '.', $value);
+            } else {
+                $value = str_replace(',', '', $value);
+            }
+        } else {
+            $value = str_replace(',', '.', $value);
+        }
 
         return (float) $value;
     }
