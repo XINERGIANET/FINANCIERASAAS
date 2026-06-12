@@ -15,7 +15,7 @@
 	<link rel="manifest" href="{{ asset('site.webmanifest') }}">
 	<meta name="apple-mobile-web-app-capable" content="yes">
 	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-	<meta name="apple-mobile-web-app-title" content="Crece Conmigo">
+	<meta name="apple-mobile-web-app-title" content="Financiera">
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#01114b">
 	<style>
