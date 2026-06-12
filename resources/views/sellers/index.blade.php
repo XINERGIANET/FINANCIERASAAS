@@ -62,11 +62,11 @@
 										</button>
 									</td>
 									<td>
-										S/ {{ $seller->contracts()->sum('payable_amount') }}
+										S/ {{ $seller->contracts()->active()->sum('payable_amount') }}
 									</td>
 									<td>
 										<button class="btn btn-link btn-overdue text-danger p-0" data-id="{{ $seller->id }}">
-											{{ $seller->contracts()->whereHas('quotas', function ($q) {
+											{{ $seller->contracts()->active()->whereHas('quotas', function ($q) {
 							$q->where('paid', 0)->whereDate('date', '<', now()); })->count() }}
 										</button>
 									</td>

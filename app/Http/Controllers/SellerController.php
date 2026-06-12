@@ -15,7 +15,9 @@ class SellerController extends Controller
 {
     public function index(Request $request)
     {
-        $sellers = User::seller()->active()->withCount('contracts')->when($request->search, function ($query, $search) {
+        $sellers = User::seller()->active()->withCount(['contracts' => function($query) {
+            $query->active();
+        }])->when($request->search, function ($query, $search) {
             return $query->where('name', 'like', '%' . $search . '%');
         })->paginate(20);
 
@@ -133,7 +135,7 @@ class SellerController extends Controller
     //contratos generados por el asesor
     public function contracts(Request $request, User $seller)
     {
-        $contracts = Contract::where('seller_id', $seller->id)->get();
+        $contracts = Contract::where('seller_id', $seller->id)->active()->get();
         return response()->json([
             'status' => true,
             'contracts' => $contracts
@@ -142,7 +144,7 @@ class SellerController extends Controller
 
     public function overdueContracts(Request $request, User $seller)
     {
-        $contracts = Contract::where('seller_id', $seller->id)
+        $contracts = Contract::where('seller_id', $seller->id)->active()
             ->whereHas('quotas', function($q){
                 $q->where('paid', 0)->whereDate('date', '<', now());
             })->with('quotas')->get();

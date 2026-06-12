@@ -7,7 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <title>{{ auth()->check() && auth()->user()->company ? auth()->user()->company->name : 'SaaS ADMIN' }}</title>
     <link rel="icon" type="image/png" href="{{ asset('assets/images/favicon.png') }}?v={{ filemtime(public_path('assets/images/favicon.png')) }}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('assets/images/apple-touch-icon.png') }}?v={{ filemtime(public_path('assets/images/apple-touch-icon.png')) }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('assets/images/iconoapp.png') }}?v={{ filemtime(public_path('assets/images/iconoapp.png')) }}">
     <link rel="manifest" href="{{ asset('site.webmanifest') }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
