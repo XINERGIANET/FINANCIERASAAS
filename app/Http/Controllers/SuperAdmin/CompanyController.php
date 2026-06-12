@@ -7,9 +7,10 @@ use App\Models\Company;
 use App\Models\PaymentMethod;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class CompanyController extends Controller
 {
@@ -62,10 +63,7 @@ class CompanyController extends Controller
         ]);
 
         if ($request->hasFile('logo')) {
-            $file = $request->file('logo');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $file->move(public_path('assets/images/logos'), $filename);
-            $data['logo'] = 'assets/images/logos/' . $filename;
+            $data['logo'] = $this->storeCompanyLogo($request->file('logo'));
         } else {
             $data['logo'] = 'assets/images/logo.png';
         }
@@ -125,10 +123,7 @@ class CompanyController extends Controller
         ]);
 
         if ($request->hasFile('logo')) {
-            $file = $request->file('logo');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $file->move(public_path('assets/images/logos'), $filename);
-            $data['logo'] = 'assets/images/logos/' . $filename;
+            $data['logo'] = $this->storeCompanyLogo($request->file('logo'));
         }
 
         $data['permissions'] = $request->input('permissions', []);
@@ -164,5 +159,34 @@ class CompanyController extends Controller
         $company->save();
 
         return redirect()->route('superadmin.companies.index')->with('success', 'Estado de la financiera actualizado.');
+    }
+
+    private function storeCompanyLogo($file): string
+    {
+        $directory = public_path('assets/images/logos');
+
+        if (!File::exists($directory)) {
+            File::ensureDirectoryExists($directory, 0755, true);
+        }
+
+        if (!is_writable($directory)) {
+            throw ValidationException::withMessages([
+                'logo' => 'No se pudo guardar el logo porque la carpeta de destino no tiene permisos de escritura.',
+            ]);
+        }
+
+        $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->guessExtension() ?: 'png');
+        $filename = time() . '_' . Str::slug($originalName) . '.' . $extension;
+
+        try {
+            $file->move($directory, $filename);
+        } catch (\Throwable $e) {
+            throw ValidationException::withMessages([
+                'logo' => 'No se pudo guardar el logo. Verifica que la carpeta public/assets/images/logos exista y sea escribible.',
+            ]);
+        }
+
+        return 'assets/images/logos/' . $filename;
     }
 }

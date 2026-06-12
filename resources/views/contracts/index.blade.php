@@ -198,7 +198,7 @@
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-info py-2 mb-3">
-                            <strong>Campos obligatorios:</strong> DNI, Nombre, Teléfono y Referencia.
+                            <strong>Campos obligatorios:</strong> DNI, Nombre, Teléfono, Dirección y Referencia.
                         </div>
                         <div class="row">
                             <div class="col-lg-4">
@@ -263,9 +263,9 @@
                             </div>
                             <div class="col-lg-4" id="divAddress">
                                 <div class="mb-3">
-                                    <label class="form-label">Dirección</label>
+                                    <label class="form-label required">Dirección</label>
                                     <input type="text" class="form-control" name="address" id="address"
-                                        autocomplete="off">
+                                        autocomplete="off" required>
                                 </div>
                             </div>
                             <div class="col-lg-4" id="divDepartment">

@@ -162,7 +162,6 @@ class ContractController extends Controller
             'documents.*' => 'nullable|size:8|distinct',
             'names.*' => 'nullable|distinct',
             'addresses.*' => 'nullable',
-            'address.*' => 'required',
             'document' => 'nullable|size:8',
             'name' => 'nullable',
             'group_name' => 'nullable',
@@ -184,7 +183,7 @@ class ContractController extends Controller
             'insurance_cost' => 'required|numeric|min:0',
         ]);
 
-        $validator->sometimes(['document', 'name', 'phone', 'reference'], 'required', function ($request) {
+        $validator->sometimes(['document', 'name', 'phone', 'reference', 'address'], 'required', function ($request) {
             return $request->client_type == 'Personal';
         });
 
@@ -436,7 +435,6 @@ class ContractController extends Controller
             'documents.*' => 'nullable|size:8|distinct',
             'names.*' => 'nullable|distinct',
             'addresses.*' => 'nullable',
-            'address.*' => 'required',
             'document' => 'nullable|size:8',
             'name' => 'nullable',
             'group_name' => 'nullable',
@@ -458,7 +456,7 @@ class ContractController extends Controller
             'insurance_cost' => 'required|numeric|min:0',
         ]);
 
-        $validator->sometimes(['document', 'name', 'phone', 'reference'], 'required', function ($request) {
+        $validator->sometimes(['document', 'name', 'phone', 'reference', 'address'], 'required', function ($request) {
             return $request->client_type == 'Personal';
         });
 
