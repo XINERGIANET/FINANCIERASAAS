@@ -171,11 +171,10 @@
                                                 </button>
                                             @endif
                                             @php
-                                                $hasPaidQuotas = clone $contract->quotas;
-                                                $hasPaidQuotas = $hasPaidQuotas->where('paid', '>', 0)->count() > 0 || $contract->paid > 0;
+                                                $hasPaidQuotas = $contract->quotas()->where('paid', '>', 0)->exists() || $contract->paid > 0;
                                             @endphp
-                                            <button class="btn btn-icon {{ $hasPaidQuotas ? 'btn-secondary' : 'btn-warning' }} btn-edit" data-id="{{ $contract->id }}"
-                                                title="{{ $hasPaidQuotas ? 'No se puede editar, tiene cuotas pagadas' : 'Editar' }}" {{ $hasPaidQuotas ? 'disabled' : '' }}>
+                                            <button class="btn btn-icon btn-warning btn-edit" data-id="{{ $contract->id }}"
+                                                title="{{ $hasPaidQuotas ? 'Editar (se validará al guardar si tiene cuotas pagadas)' : 'Editar' }}">
                                                 <i class="ti ti-edit icon"></i>
                                             </button>
                                             <button class="btn btn-icon btn-danger btn-delete"
@@ -471,12 +470,12 @@
                                 <div class="mb-3">
                                     <label class="form-label required">Fecha de prestamo</label>
                                     @if (auth()->user()->hasRole('operations'))
-                                        <input type="date" class="form-control" name="date_disabled"
+                                        <input type="date" class="form-control" id="date_display" name="date_disabled"
                                             value="{{ now()->format('Y-m-d') }}" autocomplete="off" disabled>
                                         {{-- input hidden para asegurar que la fecha se envÃ­e en el formulario aun cuando el campo estÃ© disabled --}}
-                                        <input type="hidden" name="date" value="{{ now()->format('Y-m-d') }}">
+                                        <input type="hidden" id="date" name="date" value="{{ now()->format('Y-m-d') }}">
                                     @else
-                                        <input type="date" class="form-control" name="date"
+                                        <input type="date" class="form-control" id="date" name="date"
                                             value="{{ now()->format('Y-m-d') }}" autocomplete="off">
                                     @endif
                                 </div>
@@ -612,6 +611,11 @@
         var totalDebt = 0;
 
         $(document).ready(function() {
+            function setContractDate(dateValue) {
+                var normalizedDate = dateValue || '{{ now()->format('Y-m-d') }}';
+                $('#date').val(normalizedDate);
+                $('#date_display').val(normalizedDate);
+            }
 
             var queryString = window.location.search;
             var parametros = new URLSearchParams(queryString);
@@ -630,6 +634,7 @@
                     $('#client_type').trigger('change');
                     $('#province_id').html('<option value="">Seleccionar</option>');
                     $('#district_id').html('<option value="">Seleccionar</option>');
+                    setContractDate();
                 }
             });
 
@@ -1110,7 +1115,7 @@
                     var quotasNumber = parseFloat(quotasSource) || 0;
                     $('#months_number').val(quotasNumber > 0 ? quotasNumber : data.months_number);
                     $('select[name="type_quota"]').val(data.type_quota);
-                    if(data.date) $('#date').val(data.date.split('T')[0]);
+                    setContractDate(data.date ? data.date.split('T')[0] : '');
                     $('#interest').val(data.percentage);
                     
                     // El formulario trabaja con numero de cuotas y seguro mensual.
