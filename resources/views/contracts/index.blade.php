@@ -38,11 +38,17 @@
                 <i class="ti ti-file-export icon"></i> Excel
             </button>
             @if (!auth()->user()->hasRole('seller'))
+                <button class="btn btn-outline-secondary ms-2" id="btn-export-import-data">
+                    <i class="ti ti-file-download icon"></i> Data editable
+                </button>
                 <a href="{{ route('contracts.import.template') }}" class="btn btn-outline-success ms-2">
                     <i class="ti ti-download icon"></i> Plantilla Excel
                 </a>
                 <button class="btn btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#importModal">
                     <i class="ti ti-upload icon"></i> Importar Excel
+                </button>
+                <button class="btn btn-outline-danger ms-2 d-none" id="btn-bulk-delete">
+                    <i class="ti ti-trash icon"></i> Eliminar seleccionados
                 </button>
             @endif
         </div>
@@ -91,6 +97,11 @@
             <table class="table card-table table-vcenter">
                 <thead>
                     <tr>
+                        @if (!auth()->user()->hasRole('seller'))
+                            <th class="w-1">
+                                <input type="checkbox" class="form-check-input" id="check-all-contracts">
+                            </th>
+                        @endif
                         <th>Cliente/Grupo</th>
                         <th>Asesor C.</th>
                         <th>Monto solicitado</th>
@@ -98,7 +109,7 @@
                         <th>% de interés</th>
                         <th>interés</th>
                         <th>Monto a pagar</th>
-                        {{-- <th>Monto seguro</th> --}}
+                        <th>Monto seguro</th>
                         <th>Fecha de prestamo</th>
                         <th>Tipo de cuotas</th>
                         <th>Estado</th>
@@ -110,6 +121,11 @@
                     @if ($contracts->count() > 0)
                         @foreach ($contracts as $contract)
                             <tr>
+                                @if (!auth()->user()->hasRole('seller'))
+                                    <td>
+                                        <input type="checkbox" class="form-check-input contract-checkbox" value="{{ $contract->id }}">
+                                    </td>
+                                @endif
                                 <td title="{!! $contract->people() !!}" data-bs-toggle="tooltip" data-bs-html="true">
                                     {{ $contract->client_type == 'Personal' ? $contract->name : $contract->group_name }}
                                 </td>
@@ -119,7 +135,7 @@
                                 <td>{{ $contract->percentage }}%</td>
                                 <td>S/ {{ number_format($contract->interest, 1) }}</td>
                                 <td>S/ {{ number_format($contract->payable_amount, 1) }}</td>
-                                {{-- <td>S/ {{ number_format($contract->insurance_amount, 1) }}</td> --}}
+                                <td>S/ {{ number_format($contract->insurance_amount, 1) }}</td>
                                 <td>{{ $contract->date->format('d/m/Y') }}</td>
                                 <td>
                                     {{ $contract->quota_type }}
@@ -174,7 +190,7 @@
                         @endforeach
                     @else
                         <tr>
-                            <td colspan="12" align="center">No se han encontrado resultados</td>
+                            <td colspan="{{ auth()->user()->hasRole('seller') ? 13 : 14 }}" align="center">No se han encontrado resultados</td>
                         </tr>
                     @endif
                 </tbody>
@@ -472,7 +488,13 @@
                                         autocomplete="off">
                                 </div>
                             </div>
-                            <input type="hidden" name="insurance_cost" id="insurance_cost" value="0">
+                            <div class="col-lg-4">
+                                <div class="mb-3">
+                                    <label class="form-label required">Monto seguro</label>
+                                    <input type="text" class="form-control" name="insurance_cost" id="insurance_cost"
+                                        value="0" autocomplete="off">
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -500,6 +522,10 @@
                             <div class="alert alert-info">
                                 <strong>Plantilla soportada:</strong> CLIENTES, CONTRATOS, INTEGRANTES, CUOTAS y PAGOS.
                                 Descargue primero la plantilla para respetar los encabezados obligatorios/opcionales.
+                            </div>
+                            <div class="alert alert-warning">
+                                <strong>Edicion segura:</strong> descargue primero la <em>Data editable</em>, corrija el archivo,
+                                elimine masivamente los contratos malos y luego vuelva a importarlo.
                             </div>
                             <div class="mb-3">
                                 <label class="form-label required">Archivo Excel</label>
@@ -1127,6 +1153,59 @@
 
         });
 
+        function syncBulkDeleteState() {
+            const checked = $('.contract-checkbox:checked').length;
+            $('#btn-bulk-delete').toggleClass('d-none', checked === 0);
+        }
+
+        $('#check-all-contracts').on('change', function() {
+            $('.contract-checkbox').prop('checked', $(this).is(':checked'));
+            syncBulkDeleteState();
+        });
+
+        $(document).on('change', '.contract-checkbox', function() {
+            const total = $('.contract-checkbox').length;
+            const checked = $('.contract-checkbox:checked').length;
+
+            $('#check-all-contracts').prop('checked', total > 0 && total === checked);
+            syncBulkDeleteState();
+        });
+
+        $('#btn-bulk-delete').on('click', function() {
+            const ids = $('.contract-checkbox:checked').map(function() {
+                return $(this).val();
+            }).get();
+
+            if (!ids.length) {
+                return;
+            }
+
+            ToastConfirm.fire({
+                text: 'Se eliminaran permanentemente los contratos seleccionados con sus cuotas, pagos y registros relacionados. Esta accion no se puede deshacer.',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: '{{ route('contracts.bulk-destroy') }}',
+                        method: 'DELETE',
+                        data: {
+                            contract_ids: ids
+                        },
+                        success: function(data) {
+                            ToastMessage.fire({
+                                    text: data.deleted_count + ' contrato(s) eliminado(s)'
+                                })
+                                .then(() => location.reload());
+                        },
+                        error: function(err) {
+                            ToastError.fire({
+                                text: err.responseJSON?.error || 'Ocurrio un error al eliminar los contratos'
+                            });
+                        }
+                    });
+                }
+            });
+        });
+
         $('#civil_status').change(function() {
             var civil_status = $(this).val();
 
@@ -1266,6 +1345,12 @@
         $('#btn-excel').click(function() {
             const params = new URLSearchParams(window.location.search);
             const url = `{{ route('contracts.excel') }}?${params.toString()}`;
+            window.location.href = url;
+        });
+
+        $('#btn-export-import-data').click(function() {
+            const params = new URLSearchParams(window.location.search);
+            const url = `{{ route('contracts.import.data.export') }}?${params.toString()}`;
             window.location.href = url;
         });
     </script>

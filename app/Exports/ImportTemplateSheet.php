@@ -13,11 +13,13 @@ class ImportTemplateSheet implements FromArray, WithTitle, ShouldAutoSize, WithS
 {
     private $title;
     private $rows;
+    private $highlightExampleRow;
 
-    public function __construct(string $title, array $rows)
+    public function __construct(string $title, array $rows, bool $highlightExampleRow = true)
     {
         $this->title = $title;
         $this->rows = $rows;
+        $this->highlightExampleRow = $highlightExampleRow;
     }
 
     public function array(): array
@@ -44,7 +46,7 @@ class ImportTemplateSheet implements FromArray, WithTitle, ShouldAutoSize, WithS
             ];
         }
 
-        return [
+        $styles = [
             1 => [
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                 'fill' => [
@@ -52,13 +54,18 @@ class ImportTemplateSheet implements FromArray, WithTitle, ShouldAutoSize, WithS
                     'startColor' => ['rgb' => '2F5597'],
                 ],
             ],
-            2 => [
+        ];
+
+        if ($this->highlightExampleRow) {
+            $styles[2] = [
                 'font' => ['italic' => true],
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,
                     'startColor' => ['rgb' => 'FFF2CC'],
                 ],
-            ],
-        ];
+            ];
+        }
+
+        return $styles;
     }
 }

@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Exports\ContractsExport;
+use App\Exports\ContractsImportDataExport;
 use App\Exports\EndingContractsExport;
 use App\Exports\ImportTemplateExport;
 use App\Exports\SentinelExport;
@@ -18,6 +19,7 @@ use App\Models\Quota;
 use App\Models\User;
 use App\Models\Pdf as PdfModel;
 use App\Models\Department;
+use App\Services\ContractBulkDeletionService;
 use App\Services\CompanyDataImportService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -116,6 +118,18 @@ class ContractController extends Controller
     {
         $name = "Contratos_" . now()->format('d_m_Y') . ".xlsx";
         return Excel::download(new ContractsExport, $name);
+    }
+
+    public function exportImportData(Request $request)
+    {
+        $name = "ContratosEditable_" . now()->format('d_m_Y') . ".xlsx";
+
+        return Excel::download(new ContractsImportDataExport($request->only([
+            'name',
+            'seller_id',
+            'start_date',
+            'end_date',
+        ])), $name);
     }
 
     public function importTemplate()
@@ -696,6 +710,36 @@ class ContractController extends Controller
 
         return response()->json([
             'status' => true
+        ]);
+    }
+
+    public function bulkDestroy(Request $request, ContractBulkDeletionService $deletionService)
+    {
+        $request->validate([
+            'contract_ids' => 'required|array|min:1',
+            'contract_ids.*' => 'integer',
+        ]);
+
+        $companyId = auth()->user()->company_id;
+        if (!$companyId) {
+            return response()->json([
+                'status' => false,
+                'error' => 'La financiera del usuario no esta configurada.',
+            ], 422);
+        }
+
+        $deletedCount = $deletionService->delete($request->input('contract_ids', []), $companyId);
+
+        if ($deletedCount === 0) {
+            return response()->json([
+                'status' => false,
+                'error' => 'No se encontraron contratos validos para eliminar.',
+            ], 422);
+        }
+
+        return response()->json([
+            'status' => true,
+            'deleted_count' => $deletedCount,
         ]);
     }
 

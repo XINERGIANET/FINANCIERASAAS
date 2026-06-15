@@ -61,6 +61,8 @@ Route::middleware('auth')->group(function () {
 	Route::get('contracts/sentinel/excel', [ContractController::class, 'sentinelExcel'])->name('contracts.sentinel.excel');
 	Route::get('contracts/import/template', [ContractController::class, 'importTemplate'])->name('contracts.import.template');
 	Route::post('contracts/import', [ContractController::class, 'importStore'])->name('contracts.import.store');
+	Route::get('contracts/import/data/export', [ContractController::class, 'exportImportData'])->name('contracts.import.data.export');
+	Route::delete('contracts/bulk-delete', [ContractController::class, 'bulkDestroy'])->name('contracts.bulk-destroy');
 	Route::get('contracts/{contract}/pdf', [ContractController::class, 'pdf'])->name('contracts.pdf');
 	Route::get('contracts/{contract}/pdfPersonal', [ContractController::class, 'pdfPersonal'])->name('contracts.pdfPersonal');
 	Route::get('contracts/excel', [ContractController::class, 'excel'])->name('contracts.excel');
