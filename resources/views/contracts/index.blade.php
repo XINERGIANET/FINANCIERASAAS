@@ -609,45 +609,44 @@
 @section('scripts')
     <script>
         var totalDebt = 0;
+        var isHydratingContractForm = false;
+
+        function getBootstrapModal(modalSelector) {
+            var modalElement = document.querySelector(modalSelector);
+            if (!modalElement || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+                return null;
+            }
+
+            return bootstrap.Modal.getOrCreateInstance(modalElement);
+        }
+
+        function openModal(modalSelector) {
+            var modalInstance = getBootstrapModal(modalSelector);
+            if (modalInstance) {
+                modalInstance.show();
+                return;
+            }
+
+            $(modalSelector).modal('show');
+        }
+
+        function closeModal(modalSelector) {
+            var modalInstance = getBootstrapModal(modalSelector);
+            if (modalInstance) {
+                modalInstance.hide();
+                return;
+            }
+
+            $(modalSelector).modal('hide');
+        }
+
+        function setContractDate(dateValue) {
+            var normalizedDate = dateValue || '{{ now()->format('Y-m-d') }}';
+            $('#date').val(normalizedDate);
+            $('#date_display').val(normalizedDate);
+        }
 
         $(document).ready(function() {
-            var isHydratingContractForm = false;
-
-            function getBootstrapModal(modalSelector) {
-                var modalElement = document.querySelector(modalSelector);
-                if (!modalElement || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
-                    return null;
-                }
-
-                return bootstrap.Modal.getOrCreateInstance(modalElement);
-            }
-
-            function openModal(modalSelector) {
-                var modalInstance = getBootstrapModal(modalSelector);
-                if (modalInstance) {
-                    modalInstance.show();
-                    return;
-                }
-
-                $(modalSelector).modal('show');
-            }
-
-            function closeModal(modalSelector) {
-                var modalInstance = getBootstrapModal(modalSelector);
-                if (modalInstance) {
-                    modalInstance.hide();
-                    return;
-                }
-
-                $(modalSelector).modal('hide');
-            }
-
-            function setContractDate(dateValue) {
-                var normalizedDate = dateValue || '{{ now()->format('Y-m-d') }}';
-                $('#date').val(normalizedDate);
-                $('#date_display').val(normalizedDate);
-            }
-
             var queryString = window.location.search;
             var parametros = new URLSearchParams(queryString);
 
