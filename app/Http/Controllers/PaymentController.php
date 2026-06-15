@@ -17,6 +17,7 @@ use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Models\User;
 use App\Services\MultiPaymentService;
+use RuntimeException;
 
 class PaymentController extends Controller
 {
@@ -165,6 +166,11 @@ class PaymentController extends Controller
     }
 
     public function store(Request $request){
+        $scheduledIds = collect($request->input('scheduled_quota_ids', []))->filter()->values();
+        if ($scheduledIds->isNotEmpty()) {
+            return $this->storeScheduledPassive($request);
+        }
+
         $multipleIds = collect($request->input('cuotas_seleccionadas_ids', []))->filter()->values();
         if ($multipleIds->isNotEmpty()) {
             return $this->storeMultiple($request);
@@ -287,6 +293,139 @@ class PaymentController extends Controller
             'status' => true
         ]);
         
+    }
+
+    private function storeScheduledPassive(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'scheduled_quota_ids' => 'required|array|min:1',
+            'scheduled_quota_ids.*' => 'integer|distinct',
+        ]);
+
+        $validator->after(function ($validator) use ($request) {
+            $quotaIds = collect($request->input('scheduled_quota_ids', []))
+                ->map(fn ($id) => (int) $id)
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($quotaIds->isEmpty()) {
+                $validator->errors()->add('cart', 'Debe seleccionar al menos una cuota.');
+                return;
+            }
+
+            $quotas = Quota::active()
+                ->with('contract')
+                ->whereIn('id', $quotaIds)
+                ->orderBy('number')
+                ->get()
+                ->values();
+
+            if ($quotas->count() !== $quotaIds->count()) {
+                $validator->errors()->add('cart', 'Una o más cuotas seleccionadas no existen o ya no están disponibles.');
+                return;
+            }
+
+            $contractIds = $quotas->pluck('contract_id')->unique()->values();
+            if ($contractIds->count() !== 1) {
+                $validator->errors()->add('cart', 'Solo puede pagar cuotas de un mismo contrato a la vez.');
+                return;
+            }
+
+            $contractId = $contractIds->first();
+            $pendingQuotas = Quota::active()
+                ->where('contract_id', $contractId)
+                ->where('paid', 0)
+                ->orderBy('number')
+                ->get()
+                ->values();
+
+            $expectedIds = $pendingQuotas->take($quotaIds->count())->pluck('id')->map(fn ($id) => (int) $id)->values();
+            $selectedIds = $quotas->pluck('id')->map(fn ($id) => (int) $id)->values();
+
+            if ($expectedIds->count() !== $selectedIds->count() || $expectedIds->all() !== $selectedIds->all()) {
+                $validator->errors()->add('cart', 'Solo puede seleccionar cuotas consecutivas desde la primera pendiente.');
+                return;
+            }
+
+            if ($quotas->contains(fn ($quota) => round((float) $quota->debt, 2) <= 0)) {
+                $validator->errors()->add('cart', 'Todas las cuotas seleccionadas deben tener saldo pendiente.');
+                return;
+            }
+        });
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'error' => $validator->errors()->first()
+            ]);
+        }
+
+        try {
+            DB::transaction(function () use ($request) {
+                $quotaIds = collect($request->input('scheduled_quota_ids', []))
+                    ->map(fn ($id) => (int) $id)
+                    ->filter()
+                    ->unique()
+                    ->values();
+
+                $quotas = Quota::active()
+                    ->with('contract')
+                    ->whereIn('id', $quotaIds)
+                    ->lockForUpdate()
+                    ->orderBy('number')
+                    ->get()
+                    ->values();
+
+                $contract = optional($quotas->first())->contract;
+                if (!$contract) {
+                    throw new RuntimeException('No se pudo resolver el contrato de las cuotas seleccionadas.');
+                }
+
+                $cashMethod = PaymentMethod::active()
+                    ->whereRaw('LOWER(name) = ?', ['efectivo'])
+                    ->first();
+
+                if (!$cashMethod) {
+                    throw new RuntimeException('No existe el método de pago Efectivo activo.');
+                }
+
+                foreach ($quotas as $quota) {
+                    $amount = round((float) $quota->debt, 2);
+                    if ($amount <= 0) {
+                        continue;
+                    }
+
+                    Payment::create([
+                        'quota_id' => $quota->id,
+                        'amount' => $amount,
+                        'payment_method_id' => $cashMethod->id,
+                        'date' => $quota->date->format('Y-m-d'),
+                        'due_days' => 0,
+                        'image' => null,
+                        'people' => $contract->client_type === 'Grupo' ? $contract->people : null,
+                    ]);
+
+                    $quota->update([
+                        'debt' => 0,
+                        'paid' => 1,
+                    ]);
+                }
+
+                $contract->update([
+                    'paid' => $contract->quotas()->where('paid', 0)->count() === 0 ? 1 : 0,
+                ]);
+            });
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => false,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return response()->json([
+            'status' => true,
+        ]);
     }
 
     public function storeMultiple(Request $request)

@@ -15,6 +15,7 @@
 		<div class="card-header">
 			<a class="btn btn-success" href="{{ route('payments.charges.excel', request()->all()) }}"
 				target="_blank">Excel</a>
+			<button type="button" class="btn btn-warning ms-2" id="btn-passive-pay" disabled>Pago pasivo</button>
 		</div>
 		<div class="card-body border-bottom">
 			<form>
@@ -62,6 +63,7 @@
 			<table class="table card-table table-vcenter">
 				<thead>
 					<tr>
+						<th style="width: 40px;"></th>
 						<th>Cliente</th>
 						<th>Número de cuota</th>
 						<th>Total cuotas</th>
@@ -74,7 +76,20 @@
 				<tbody>
 					@if($quotas->count() > 0)
 						@foreach($quotas as $quota)
+							@php
+								$isNext = $quota->number == ($nextQuotas[$quota->contract_id] ?? null);
+							@endphp
 							<tr>
+								<td>
+									@if($quota->paid == 0)
+										<input type="checkbox"
+											class="form-check-input passive-quota-checkbox"
+											value="{{ $quota->id }}"
+											data-contract-id="{{ $quota->contract_id }}"
+											data-quota-number="{{ $quota->number }}"
+											{{ $isNext ? '' : 'disabled' }}>
+									@endif
+								</td>
 								<td>{{ optional($quota->contract)->client() }}</td>
 								<td>{{ $quota->number }}</td>
 								<td>{{ optional($quota->contract)->quotas_number }}</td>
@@ -83,9 +98,6 @@
 								<td>{{ $quota->date->format('d/m/Y') }}</td>
 								<td>
 									@if($quota->paid == 0)
-										@php
-											$isNext = $quota->number == ($nextQuotas[$quota->contract_id] ?? null);
-										@endphp
 										<button class="btn btn-primary btn-pay" data-contract-id="{{ $quota->contract_id }}"
 											{{ $isNext ? '' : 'disabled' }}
 											data-quota-id="{{ $quota->id }}" data-amount="{{ $quota->debt }}"
@@ -95,10 +107,11 @@
 										</button>
 									@endif
 								</td>
+							</tr>
 						@endforeach
 					@else
 							<tr>
-								<td colspan="5" align="center">No se han encontrado resultados</td>
+								<td colspan="8" align="center">No se han encontrado resultados</td>
 							</tr>
 						@endif
 				</tbody>
@@ -184,6 +197,138 @@
 
 @section('scripts')
 	<script>
+		function getPassiveCheckboxes(contractId) {
+			return $($('.passive-quota-checkbox').filter(function () {
+				return String($(this).data('contract-id')) === String(contractId);
+			}).get().sort(function (a, b) {
+				return (parseInt($(a).data('quota-number'), 10) || 0) - (parseInt($(b).data('quota-number'), 10) || 0);
+			}));
+		}
+
+		function getSelectedContractId() {
+			var selected = $('.passive-quota-checkbox:checked').first();
+			return selected.length ? String(selected.data('contract-id')) : null;
+		}
+
+		function updatePassiveSelectionState() {
+			var selectedContractId = getSelectedContractId();
+			var contractIds = [];
+
+			$('.passive-quota-checkbox').each(function () {
+				var contractId = String($(this).data('contract-id'));
+				if (contractIds.indexOf(contractId) === -1) {
+					contractIds.push(contractId);
+				}
+			});
+
+			contractIds.forEach(function (contractId) {
+				var $contractCheckboxes = getPassiveCheckboxes(contractId);
+				var checkedIndexes = [];
+
+				$contractCheckboxes.each(function (index) {
+					if ($(this).is(':checked')) {
+						checkedIndexes.push(index);
+					}
+				});
+
+				if (selectedContractId && contractId !== selectedContractId) {
+					$contractCheckboxes.each(function () {
+						$(this).prop('checked', false).prop('disabled', true);
+					});
+					return;
+				}
+
+				var nextEnabledIndex = checkedIndexes.length;
+				$contractCheckboxes.each(function (index) {
+					var $item = $(this);
+					var shouldEnable = index < nextEnabledIndex || index === nextEnabledIndex;
+					if (!selectedContractId && index === 0) {
+						shouldEnable = true;
+					}
+					$item.prop('disabled', !shouldEnable);
+				});
+			});
+
+			var selectedCount = $('.passive-quota-checkbox:checked').length;
+			$('#btn-passive-pay')
+				.prop('disabled', selectedCount === 0)
+				.text(selectedCount > 0 ? `Pago pasivo (${selectedCount})` : 'Pago pasivo');
+		}
+
+		$(document).on('change', '.passive-quota-checkbox', function () {
+			var $current = $(this);
+			var contractId = String($current.data('contract-id'));
+			var $contractCheckboxes = getPassiveCheckboxes(contractId);
+			var currentIndex = $contractCheckboxes.index($current);
+
+			if ($current.is(':checked')) {
+				for (var i = 0; i < currentIndex; i++) {
+					if (!$contractCheckboxes.eq(i).is(':checked')) {
+						$current.prop('checked', false);
+						ToastError.fire({ text: 'Debe seleccionar las cuotas en orden ascendente desde la primera pendiente.' });
+						updatePassiveSelectionState();
+						return;
+					}
+				}
+			} else {
+				$contractCheckboxes.each(function (index) {
+					if (index > currentIndex) {
+						$(this).prop('checked', false);
+					}
+				});
+			}
+
+			updatePassiveSelectionState();
+		});
+
+		$(document).on('click', '#btn-passive-pay', function () {
+			var selectedIds = $('.passive-quota-checkbox:checked').map(function () {
+				return $(this).val();
+			}).get();
+
+			if (selectedIds.length === 0) {
+				return;
+			}
+
+			ToastConfirm.fire({
+				text: 'Se registrarán pagos completos en efectivo usando la fecha programada de cada cuota seleccionada.'
+			}).then((result) => {
+				if (!result.isConfirmed) {
+					return;
+				}
+
+				var fd = new FormData();
+				selectedIds.forEach(function (id) {
+					fd.append('scheduled_quota_ids[]', id);
+				});
+
+				$('#btn-passive-pay').prop('disabled', true);
+
+				$.ajax({
+					url: '{{ route('payments.store') }}',
+					method: 'POST',
+					processData: false,
+					contentType: false,
+					data: fd,
+					success: function (data) {
+						if (data.status) {
+							ToastMessage.fire({ text: 'Pagos pasivos registrados correctamente' })
+								.then(() => location.reload());
+						} else {
+							ToastError.fire({ text: data.error ? data.error : 'Ocurrió un error' });
+							updatePassiveSelectionState();
+						}
+					},
+					error: function () {
+						ToastError.fire({ text: 'Ocurrió un error al registrar los pagos pasivos' });
+						updatePassiveSelectionState();
+					}
+				});
+			});
+		});
+
+		updatePassiveSelectionState();
+
 		$(document).on('click', '.btn-pay', function () {
 			var btn = $(this);
 			$('#pay_contract_id').val(btn.data('contract-id'));
