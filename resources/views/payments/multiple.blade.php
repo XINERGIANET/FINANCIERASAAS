@@ -156,7 +156,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label required">Fecha</label>
-                        @if(auth()->user()->hasRole('admin'))
+                        @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('seller'))
                             <input type="date" class="form-control" name="date" id="multiple_date" value="{{ now()->format('Y-m-d') }}">
                         @else
                             <input type="text" class="form-control" value="{{ now()->format('d/m/Y') }}" disabled>
