@@ -173,7 +173,7 @@
                                             @php
                                                 $hasPaidQuotas = $contract->quotas()->where('paid', '>', 0)->exists() || $contract->paid > 0;
                                             @endphp
-                                            <button class="btn btn-icon btn-warning btn-edit" data-id="{{ $contract->id }}"
+                                                <button type="button" class="btn btn-icon btn-warning btn-edit" data-id="{{ $contract->id }}"
                                                 title="{{ $hasPaidQuotas ? 'Editar (se validará al guardar si tiene cuotas pagadas)' : 'Editar' }}">
                                                 <i class="ti ti-edit icon"></i>
                                             </button>
@@ -454,7 +454,7 @@
                                 <div class="mb-3">
                                     <label class="form-label required">Número de cuotas</label>
                                     <input type="number" class="form-control" name="months_number" id="months_number"
-                                        autocomplete="off" step="any" min="0">
+                                        autocomplete="off" step="1" min="1">
                                 </div>
                             </div>
                             <div class="col-lg-2">
@@ -611,6 +611,35 @@
         var totalDebt = 0;
 
         $(document).ready(function() {
+            function getBootstrapModal(modalSelector) {
+                var modalElement = document.querySelector(modalSelector);
+                if (!modalElement || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+                    return null;
+                }
+
+                return bootstrap.Modal.getOrCreateInstance(modalElement);
+            }
+
+            function openModal(modalSelector) {
+                var modalInstance = getBootstrapModal(modalSelector);
+                if (modalInstance) {
+                    modalInstance.show();
+                    return;
+                }
+
+                $(modalSelector).modal('show');
+            }
+
+            function closeModal(modalSelector) {
+                var modalInstance = getBootstrapModal(modalSelector);
+                if (modalInstance) {
+                    modalInstance.hide();
+                    return;
+                }
+
+                $(modalSelector).modal('hide');
+            }
+
             function setContractDate(dateValue) {
                 var normalizedDate = dateValue || '{{ now()->format('Y-m-d') }}';
                 $('#date').val(normalizedDate);
@@ -622,7 +651,7 @@
 
 
             if (parametros.get('modal') == 'create') {
-                $('#createModal').modal('show');
+                openModal('#createModal');
             }
 
             // Limpiar selects cuando se abre el modal para crear nuevo
@@ -798,19 +827,11 @@
 
             // Cambiar atributo step segÃºn tipo de cuota
             $typeQuota.on('change', function() {
-                if ($(this).val() === '4') {
-                    $months.attr('step', '1');
-                } else {
-                    $months.attr('step', '0.1');
-                }
+                $months.attr('step', '1');
             });
 
             // Inicializar step
-            if ($typeQuota.val() === '4') {
-                $months.attr('step', '1');
-            } else {
-                $months.attr('step', '0.1');
-            }
+            $months.attr('step', '1');
 
         });
 
@@ -989,7 +1010,7 @@
                 $('#contract-debt').text(contract_debt.toFixed(2));
                 $('#difference').text(difference.toFixed(2));
 
-                $('#confirmDerivedModal').modal('show');
+                openModal('#confirmDerivedModal');
 
                 $('#btn-save').prop('disabled', false);
                 return;
@@ -1005,7 +1026,7 @@
                 data: $(this).serialize(),
                 success: function(data) {
                     if (data.status) {
-                        $('#createModal').modal('hide');
+                        closeModal('#createModal');
                         $('#storeForm')[0].reset();
                         $('#contract_id').val('');
                         // Limpiar selects de provincia y distrito
@@ -1039,7 +1060,7 @@
             totalDebt = 0;
 
             $('#storeForm').submit();
-            $('#confirmDerivedModal').modal('hide');
+            closeModal('#confirmDerivedModal');
         });
 
 
@@ -1109,11 +1130,11 @@
                     $('select[name="seller_id"]').val(data.seller_id);
                     $('select[name="advisor_id"]').val(data.advisor_id);
                     $('#requested_amount').val(data.requested_amount);
-                    var quotasSource = typeof data.quotas_number !== 'undefined' && data.quotas_number !== null
-                        ? data.quotas_number
-                        : data.months_number;
-                    var quotasNumber = parseFloat(quotasSource) || 0;
-                    $('#months_number').val(quotasNumber > 0 ? quotasNumber : data.months_number);
+                    var quotasNumber = parseInt(data.quotas_number, 10);
+                    if (isNaN(quotasNumber) || quotasNumber <= 0) {
+                        quotasNumber = parseInt(data.months_number, 10) || 0;
+                    }
+                    $('#months_number').val(quotasNumber > 0 ? quotasNumber : '');
                     $('select[name="type_quota"]').val(data.type_quota);
                     setContractDate(data.date ? data.date.split('T')[0] : '');
                     $('#interest').val(data.percentage);
@@ -1125,7 +1146,7 @@
                     var insurance_per_month = contractMonths > 0 ? (data.insurance_amount / contractMonths).toFixed(2) : data.insurance_amount;
                     $('#insurance_cost').val(insurance_per_month);
 
-                    $('#createModal').modal('show');
+                    openModal('#createModal');
                 },
                 error: function(err) {
                     ToastError.fire({
