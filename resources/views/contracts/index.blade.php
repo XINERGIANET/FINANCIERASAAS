@@ -1104,15 +1104,20 @@
                     $('select[name="seller_id"]').val(data.seller_id);
                     $('select[name="advisor_id"]').val(data.advisor_id);
                     $('#requested_amount').val(data.requested_amount);
-                    $('#months_number').val(data.months_number);
+                    var quotasSource = typeof data.quotas_number !== 'undefined' && data.quotas_number !== null
+                        ? data.quotas_number
+                        : data.months_number;
+                    var quotasNumber = parseFloat(quotasSource) || 0;
+                    $('#months_number').val(quotasNumber > 0 ? quotasNumber : data.months_number);
                     $('select[name="type_quota"]').val(data.type_quota);
                     if(data.date) $('#date').val(data.date.split('T')[0]);
                     $('#interest').val(data.percentage);
                     
-                    // We need to calculate base insurance per month to match what the form expects
-                    // Form expects insurance_cost per month, but DB stores total insurance_amount
-                    var quotas = data.months_number; // In update, months_number is exactly the total months
-                    var insurance_per_month = quotas > 0 ? (data.insurance_amount / quotas).toFixed(2) : data.insurance_amount;
+                    // El formulario trabaja con numero de cuotas y seguro mensual.
+                    var quotasPerMonthMap = { 1: 4, 2: 2, 4: 1 };
+                    var quotasPerMonth = quotasPerMonthMap[parseInt(data.type_quota)] || 4;
+                    var contractMonths = parseFloat(data.months_number) || (quotasNumber > 0 ? (quotasNumber / quotasPerMonth) : 0);
+                    var insurance_per_month = contractMonths > 0 ? (data.insurance_amount / contractMonths).toFixed(2) : data.insurance_amount;
                     $('#insurance_cost').val(insurance_per_month);
 
                     $('#createModal').modal('show');

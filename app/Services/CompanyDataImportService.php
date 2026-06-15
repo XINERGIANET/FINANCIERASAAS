@@ -246,7 +246,7 @@ class CompanyDataImportService
                 continue;
             }
 
-            $loanDate = $this->parseDate($row['fecha_prestamo'] ?? '', $line, 'CONTRATOS');
+            $loanDate = $this->resolveContractDate($row, $line);
             if (!$loanDate) {
                 continue;
             }
@@ -609,6 +609,22 @@ class CompanyDataImportService
                 ]);
             }
         }
+    }
+
+    private function resolveContractDate(array $row, int $line): ?Carbon
+    {
+        foreach (['fecha_contrato', 'date', 'fecha_prestamo'] as $field) {
+            $value = trim((string) ($row[$field] ?? ''));
+            if ($value === '') {
+                continue;
+            }
+
+            return $this->parseDate($value, $line, 'CONTRATOS');
+        }
+
+        $this->errors[] = 'CONTRATOS fila ' . $line . ': fecha_prestamo es obligatoria.';
+
+        return null;
     }
 
     private function resolveSeller(string $username, int $line, string $sheet)
