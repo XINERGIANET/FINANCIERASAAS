@@ -611,6 +611,8 @@
         var totalDebt = 0;
 
         $(document).ready(function() {
+            var isHydratingContractForm = false;
+
             function getBootstrapModal(modalSelector) {
                 var modalElement = document.querySelector(modalSelector);
                 if (!modalElement || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
@@ -770,7 +772,12 @@
                                 .address));
                         }
 
+                        if (!isMain || isHydratingContractForm) {
+                            return;
+                        }
+
                         // comprobar cuotas pendientes para el documento seleccionado (solo para principal)
+                        totalDebt = 0;
                         $.ajax({
                             url: '{{ route('clients.check') }}',
                             method: 'GET',
@@ -799,7 +806,7 @@
 									`;
                                     });
                                     $('#tbl-quotas').html(html);
-                                    $('#quotasModal').modal('show');
+                                    openModal('#quotasModal');
                                 }
                             }
                         });
@@ -1066,11 +1073,14 @@
 
         $(document).on('click', '.btn-edit', function() {
             var id = $(this).data('id');
+            totalDebt = 0;
+            closeModal('#quotasModal');
 
             $.ajax({
                 url: '{{ route('contracts.index') }}' + '/' + id + '/edit/',
                 method: 'GET',
                 success: function(data) {
+                    isHydratingContractForm = true;
                     $('#storeForm')[0].reset();
                     $('#contract_id').val(data.id);
                     $('#createModal .modal-title').text('Editar');
@@ -1146,9 +1156,11 @@
                     var insurance_per_month = contractMonths > 0 ? (data.insurance_amount / contractMonths).toFixed(2) : data.insurance_amount;
                     $('#insurance_cost').val(insurance_per_month);
 
+                    isHydratingContractForm = false;
                     openModal('#createModal');
                 },
                 error: function(err) {
+                    isHydratingContractForm = false;
                     ToastError.fire({
                         text: 'Ocurrió un error al cargar los datos.'
                     });
