@@ -294,12 +294,9 @@ class ContractController extends Controller
         $quota = ceil($quota_base * 10) / 10;
 
         // Calcular cuánto se pagaría con (n-1) cuotas redondeadas
-        $total_first_quotas = $quota * ($quotas_rounded - 1);
 
         // La última cuota es la diferencia exacta para que la suma total sea igual a payable_amount
-        $last_quota = $payable_amount - $total_first_quotas;
         // Redondear a 1 decimal (sin forzar hacia arriba) para mantener la suma exacta
-        $last_quota = round($last_quota * 10) / 10;
 
         $date = Carbon::parse($request->date);
 
@@ -318,7 +315,7 @@ class ContractController extends Controller
             }
 
             // Usar el monto ajustado para la última cuota
-            $quota_amount = ($i == $quotas_rounded) ? $last_quota : $quota;
+            $quota_amount = $quota;
 
             $quota_dates[] = [
                 'number' => $i,
@@ -549,9 +546,6 @@ class ContractController extends Controller
 
             $quota_base = $payable_amount / $quotas;
             $quota = ceil($quota_base * 10) / 10;
-            $total_first_quotas = $quota * ($quotas_rounded - 1);
-            $last_quota = $payable_amount - $total_first_quotas;
-            $last_quota = round($last_quota * 10) / 10;
 
             $date = Carbon::parse($request->date);
             $quota_dates = [];
@@ -563,7 +557,7 @@ class ContractController extends Controller
                 } else {
                     $quota_date = $date->copy()->addWeeks($i);
                 }
-                $quota_amount = ($i == $quotas_rounded) ? $last_quota : $quota;
+                $quota_amount = $quota;
                 $quota_dates[] = [
                     'number' => $i,
                     'date' => $quota_date->format('Y-m-d'),
@@ -655,12 +649,7 @@ class ContractController extends Controller
 
         $quotas_rounded = $contract->quotas_number;
         $type_quota = (int) $contract->type_quota;
-        $payable_amount = $contract->payable_amount;
         $quota_amount_standard = $contract->quota_amount;
-
-        $total_first_quotas = $quota_amount_standard * ($quotas_rounded - 1);
-        $last_quota = $payable_amount - $total_first_quotas;
-        $last_quota = round($last_quota * 10) / 10;
 
         $date = Carbon::parse($contract->date);
 
@@ -677,7 +666,7 @@ class ContractController extends Controller
             }
 
             // Usar el monto ajustado para la última cuota
-            $amount = ($i == $quotas_rounded) ? $last_quota : $quota_amount_standard;
+            $amount = $quota_amount_standard;
 
             Quota::create([
                 'contract_id' => $contract->id,

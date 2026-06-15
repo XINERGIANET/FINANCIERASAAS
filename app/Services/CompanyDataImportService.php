@@ -470,10 +470,7 @@ class CompanyDataImportService
     {
         $quotasRounded = (int) $contract->quotas_number;
         $typeQuota = (int) $contract->type_quota;
-        $payableAmount = (float) $contract->payable_amount;
         $quotaAmountStandard = (float) $contract->quota_amount;
-        $totalFirst = $quotaAmountStandard * ($quotasRounded - 1);
-        $lastQuota = round($payableAmount - $totalFirst, 2);
         $date = Carbon::parse($contract->date);
 
         for ($i = 1; $i <= $quotasRounded; $i++) {
@@ -485,7 +482,7 @@ class CompanyDataImportService
                 $quotaDate = $date->copy()->addWeeks($i);
             }
 
-            $amount = ($i === $quotasRounded) ? $lastQuota : $quotaAmountStandard;
+            $amount = $quotaAmountStandard;
 
             Quota::create([
                 'contract_id' => $contract->id,
