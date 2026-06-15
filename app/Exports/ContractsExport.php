@@ -52,15 +52,20 @@ class ContractsExport implements FromCollection, WithHeadings, WithMapping, With
             return $map[(int) $contract->type_quota];
         }
 
-        // Fallback para contratos viejos: calcular por diferencia entre las 2 primeras cuotas
         $firstTwo = $contract->quotas()->orderBy('date')->limit(2)->get();
 
         if ($firstTwo->count() > 1) {
             $diff = Carbon::parse($firstTwo[0]->date)->diffInDays(Carbon::parse($firstTwo[1]->date));
 
-            if ($diff >= 25 && $diff <= 35) return 'Mensual';
-            if ($diff >= 12 && $diff <= 16) return 'Quincenal';
-            if ($diff >= 5  && $diff <= 9)  return 'Semanal';
+            if ($diff >= 25 && $diff <= 35) {
+                return 'Mensual';
+            }
+            if ($diff >= 12 && $diff <= 16) {
+                return 'Quincenal';
+            }
+            if ($diff >= 5 && $diff <= 9) {
+                return 'Semanal';
+            }
         }
 
         return 'No definido';
@@ -68,7 +73,7 @@ class ContractsExport implements FromCollection, WithHeadings, WithMapping, With
 
     public function map($contract): array
     {
-        $cliente = $contract->client_type == 'Personal' ? $contract->name : $contract->group_name;
+        $cliente = $contract->client_type === 'Personal' ? $contract->name : $contract->group_name;
 
         return [
             $cliente,
@@ -76,13 +81,14 @@ class ContractsExport implements FromCollection, WithHeadings, WithMapping, With
             $this->quotaType($contract),
             $contract->requested_amount,
             $contract->quotas_number,
+            $contract->quota_amount,
             $contract->percentage . '%',
             $contract->interest,
+            $contract->insurance_amount,
             $contract->payable_amount,
-            // $contract->insurance_amount,
             optional($contract->date)->format('d/m/Y'),
             $contract->paid ? 'Pagado' : 'Pendiente',
-            $contract->approved ? 'SÍ' : 'NO',
+            $contract->approved ? 'SI' : 'NO',
         ];
     }
 
@@ -94,11 +100,12 @@ class ContractsExport implements FromCollection, WithHeadings, WithMapping, With
             'Tipo de cuota',
             'Monto solicitado',
             'Cuotas',
-            '% de interés',
-            'Interés',
+            'Monto cuota',
+            '% de interes',
+            'Interes',
+            'Monto seguro',
             'Monto a pagar',
-            // 'Monto seguro',
-            'Fecha de préstamo',
+            'Fecha de prestamo',
             'Estado',
             'Aprobado',
         ];
