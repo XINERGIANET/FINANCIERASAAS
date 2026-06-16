@@ -92,8 +92,8 @@
                         <div class="mb-3">
                             <label class="form-label">Orden monto a pagar</label>
                             <select class="form-select" name="payable_order">
-                                <option value="asc" @selected(!request()->filled('payable_order') || request()->payable_order === 'asc')>Menor a mayor</option>
-                                <option value="desc" @selected(request()->payable_order === 'desc')>Mayor a menor</option>
+                                <option value="asc" {{ !request()->filled('payable_order') || request()->payable_order === 'asc' ? 'selected' : '' }}>Menor a mayor</option>
+                                <option value="desc" {{ request()->payable_order === 'desc' ? 'selected' : '' }}>Mayor a menor</option>
                             </select>
                         </div>
                     </div>
@@ -101,10 +101,10 @@
                         <div class="mb-3">
                             <label class="form-label">Registros por página</label>
                             <select class="form-select" name="per_page">
-                                <option value="10" @selected((string) request()->per_page === '10')>10</option>
-                                <option value="100" @selected((string) request()->per_page === '100')>100</option>
-                                <option value="500" @selected((string) request()->per_page === '500' || !request()->filled('per_page'))>500</option>
-                                <option value="1000" @selected((string) request()->per_page === '1000')>1000</option>
+                                <option value="10" {{ (string) request()->per_page === '10' ? 'selected' : '' }}>10</option>
+                                <option value="100" {{ (string) request()->per_page === '100' ? 'selected' : '' }}>100</option>
+                                <option value="500" {{ (string) request()->per_page === '500' || !request()->filled('per_page') ? 'selected' : '' }}>500</option>
+                                <option value="1000" {{ (string) request()->per_page === '1000' ? 'selected' : '' }}>1000</option>
                             </select>
                         </div>
                     </div>
@@ -641,34 +641,6 @@
             return v;
         }
 
-        function refreshContractsTable() {
-            return $.ajax({
-                url: window.location.href,
-                method: 'GET'
-            }).done(function(html) {
-                var $response = $('<div>').html(html);
-                var $newTable = $response.find('#contractsTableWrapper').first();
-                var $newPagination = $response.find('#contractsPagination').first();
-
-                if ($newTable.length) {
-                    $('#contractsTableWrapper').replaceWith($newTable);
-                }
-
-                var $currentPagination = $('#contractsPagination');
-                if ($newPagination.length) {
-                    if ($currentPagination.length) {
-                        $currentPagination.replaceWith($newPagination);
-                    } else {
-                        $('.card').append($newPagination);
-                    }
-                } else {
-                    $currentPagination.remove();
-                }
-
-                syncBulkDeleteState();
-            });
-        }
-
         function getBootstrapModal(modalSelector) {
             var modalElement = document.querySelector(modalSelector);
             if (!modalElement || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
@@ -1089,7 +1061,7 @@
                         ToastMessage.fire({
                                 text: 'Registro guardado'
                             })
-                        .then(() => refreshContractsTable());
+                        .then(() => location.reload());
 
                     } else {
                         ToastError.fire({
@@ -1185,7 +1157,8 @@
 
                     $('select[name="seller_id"]').val(data.seller_id);
                     $('select[name="advisor_id"]').val(data.advisor_id);
-                    $('#requested_amount').val(data.requested_amount);
+                    var requestedAmountValue = parseFloat(String(data.requested_amount).replace(',', '.'));
+                    $('#requested_amount').val(isNaN(requestedAmountValue) ? '' : requestedAmountValue.toFixed(2));
                     var quotasNumber = parseInt(data.quotas_number, 10);
                     if (isNaN(quotasNumber) || quotasNumber <= 0) {
                         quotasNumber = parseInt(data.months_number, 10) || 0;
@@ -1229,7 +1202,7 @@
                             ToastMessage.fire({
                                     text: 'Registro eliminado'
                                 })
-                                .then(() => refreshContractsTable());
+                                .then(() => location.reload());
                         },
                         error: function(err) {
                             ToastError.fire({
@@ -1283,7 +1256,7 @@
                             ToastMessage.fire({
                                     text: data.deleted_count + ' contrato(s) eliminado(s)'
                                 })
-                                .then(() => refreshContractsTable());
+                                .then(() => location.reload());
                         },
                         error: function(err) {
                             ToastError.fire({
@@ -1415,7 +1388,7 @@
                                 ToastMessage.fire({
                                         text: 'Contrato aprobado'
                                     })
-                                    .then(() => refreshContractsTable());
+                                    .then(() => location.reload());
                             } else {
                                 ToastError.fire({
                                     text: 'Ocurrió un error'
