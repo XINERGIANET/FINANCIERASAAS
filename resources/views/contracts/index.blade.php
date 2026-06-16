@@ -88,26 +88,6 @@
                             <input type="date" class="form-control" name="end_date" value="{{ request()->end_date }}">
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label class="form-label">Orden monto a pagar</label>
-                            <select class="form-select" name="payable_order">
-                                <option value="asc" {{ !request()->filled('payable_order') || request()->payable_order === 'asc' ? 'selected' : '' }}>Menor a mayor</option>
-                                <option value="desc" {{ request()->payable_order === 'desc' ? 'selected' : '' }}>Mayor a menor</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label class="form-label">Registros por página</label>
-                            <select class="form-select" name="per_page">
-                                <option value="10" {{ (string) request()->per_page === '10' ? 'selected' : '' }}>10</option>
-                                <option value="100" {{ (string) request()->per_page === '100' ? 'selected' : '' }}>100</option>
-                                <option value="500" {{ (string) request()->per_page === '500' || !request()->filled('per_page') ? 'selected' : '' }}>500</option>
-                                <option value="1000" {{ (string) request()->per_page === '1000' ? 'selected' : '' }}>1000</option>
-                            </select>
-                        </div>
-                    </div>
                 </div>
                 <button class="btn btn-primary">Filtrar</button>
                 <a href="{{ route('contracts.index') }}" class="btn btn-danger">Limpiar</a>

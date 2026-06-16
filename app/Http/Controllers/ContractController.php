@@ -30,16 +30,7 @@ class ContractController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
-        $allowedPerPage = [10, 100, 500, 1000];
-        $perPage = (int) $request->input('per_page', 500);
-        if (!in_array($perPage, $allowedPerPage, true)) {
-            $perPage = 500;
-        }
-
-        $payableOrder = $request->input('payable_order', 'asc');
-        if (!in_array($payableOrder, ['asc', 'desc'], true)) {
-            $payableOrder = 'asc';
-        }
+        $perPage = 50;
 
         $contracts = Contract::active()->when($user->hasRole('seller'), function ($query) use ($user) {
             return $query->where('seller_id', $user->id);
@@ -54,11 +45,8 @@ class ContractController extends Controller
         })->when($request->end_date, function ($query, $end_date) {
             return $query->whereDate('date', '<=', $end_date);
         })->with('quotas')
-            ->when($payableOrder, function ($query, $payableOrder) {
-                return $query->orderBy('payable_amount', $payableOrder)->orderByDesc('id');
-            }, function ($query) {
-                return $query->latest('date')->latest('id');
-            })
+            ->latest('date')
+            ->latest('id')
             ->paginate($perPage);
 
         // Mapear el tipo de cuota numérico a texto legible
