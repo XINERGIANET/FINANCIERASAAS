@@ -163,8 +163,8 @@
                                                 <i class="ti ti-file-text icon"></i>
                                             </a>
                                             <a href="{{ route('contracts.wordPersonal', $contract) }}"
-                                                class="btn btn-secondary btn-icon" title="Word editable">
-                                                <i class="ti ti-file-type-doc icon"></i>
+                                                class="btn btn-info btn-icon text-white fw-bold" title="Word editable">
+                                                W
                                             </a>
                                         @endif
                                         @if (auth()->user()->hasRole('admin', 'operations', 'seller'))
