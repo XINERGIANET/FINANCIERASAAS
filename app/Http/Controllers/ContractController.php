@@ -191,10 +191,10 @@ class ContractController extends Controller
 
         $validator = Validator::make($request->all(), [
             'client_type' => 'required',
-            'documents.*' => 'nullable|size:8|distinct',
+            'documents.*' => 'nullable|distinct',
             'names.*' => 'nullable|distinct',
             'addresses.*' => 'nullable',
-            'document' => 'nullable|size:8',
+            'document' => 'nullable',
             'name' => 'nullable',
             'group_name' => 'nullable',
             'phone' => 'nullable',
@@ -204,7 +204,7 @@ class ContractController extends Controller
             'business_start_date' => 'nullable|date',
             'civil_status' => 'nullable',
             'husband_name' => 'nullable',
-            'husband_document' => 'nullable|size:8',
+            'husband_document' => 'nullable',
             'seller_id' => 'required',
             'advisor_id' => 'nullable|exists:advisors,id',
             'requested_amount' => 'required|numeric',
@@ -454,10 +454,10 @@ class ContractController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'client_type' => 'required',
-            'documents.*' => 'nullable|size:8|distinct',
+            'documents.*' => 'nullable|distinct',
             'names.*' => 'nullable|distinct',
             'addresses.*' => 'nullable',
-            'document' => 'nullable|size:8',
+            'document' => 'nullable',
             'name' => 'nullable',
             'group_name' => 'nullable',
             'phone' => 'nullable',
@@ -467,7 +467,7 @@ class ContractController extends Controller
             'business_start_date' => 'nullable|date',
             'civil_status' => 'nullable',
             'husband_name' => 'nullable',
-            'husband_document' => 'nullable|size:8',
+            'husband_document' => 'nullable',
             'seller_id' => 'required',
             'advisor_id' => 'nullable|exists:advisors,id',
             'requested_amount' => 'required|numeric',
