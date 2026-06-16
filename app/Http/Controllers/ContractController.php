@@ -1018,7 +1018,7 @@ class ContractController extends Controller
         $options->set('chroot', base_path());
 
         // Cargar relaciones de ubicación y cuotas
-        $contract->load('district.province.department', 'quotas');
+        $contract->load('company', 'seller', 'district.province.department', 'quotas');
 
         //Cantidad de soles en letras
         $contract->amount_in_words = $this->convertToWords($contract->requested_amount);
@@ -1068,7 +1068,7 @@ class ContractController extends Controller
         // Retornar el PDF como stream
         return response($dompdf->output(), 200)
             ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'attachment; filename="contrato_personal_' . $contract->id . '.pdf"');
+            ->header('Content-Disposition', 'inline; filename="contrato_personal_' . $contract->id . '.pdf"');
     }
     public function pdf(Request $request, Contract $contract)
     {

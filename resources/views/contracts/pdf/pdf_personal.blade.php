@@ -1,371 +1,485 @@
 @php
     $company = $contract->company ?? (auth()->check() ? auth()->user()->company : null);
-    $companyName = $company ? $company->name : 'CREDYFACIL SOLUCIONES S.A.C';
-    $companyRuc = $company ? $company->ruc : '20615044394';
-    $companyAddress = $company ? $company->address : 'Sede Piura';
-    $companyCity = $company ? $company->city : 'Piura';
-    $companyRegistry = $company ? $company->registry_info : 'Partida Electrónica N° 11325302 del Registro de Personas Jurídicas de la Zona Registral N° I – Sede Piura / Oficina Registral Piura';
+    $companyName = $company ? $company->name : 'INVERSIONES SV CAPITAL';
+    $companyRuc = $company ? $company->ruc : '';
+    $companyCity = $company ? ($company->city ?: 'Piura') : 'Piura';
+    $creditorName = $companyName;
+    $sellerName = optional($contract->seller)->name ?: 'ASESOR';
+    $quotaType = strtoupper($contract->quota_type ?: 'SEMANAL');
+    $amountWords = $contract->amount_in_words ?: '';
+    $contractDate = \Carbon\Carbon::parse($contract->date);
+    $lastPaymentDate = $contract->last_payment_date ? \Carbon\Carbon::parse($contract->last_payment_date) : null;
+    $debtors = [];
+
+    if ($contract->client_type === 'Grupo' && $contract->people) {
+        $people = json_decode($contract->people) ?: [];
+        foreach ($people as $person) {
+            $debtors[] = [
+                'name' => $person->name ?? '',
+                'document' => $person->document ?? '',
+                'address' => $person->address ?? '',
+                'civil_status' => '',
+            ];
+        }
+    } else {
+        $debtors[] = [
+            'name' => $contract->name,
+            'document' => $contract->document,
+            'address' => $contract->address,
+            'civil_status' => $contract->civil_status,
+        ];
+    }
 @endphp
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CONTRATO DE PRESTAMO PERSONAL</title>
+    <title>Contrato {{ $contract->id }}</title>
     <style>
+        @page {
+            margin: 34px 36px;
+        }
         body {
+            font-family: "Times New Roman", serif;
+            font-size: 10.5pt;
+            color: #000;
+            line-height: 1.22;
+        }
+        h1, h2, h3 {
+            text-align: center;
+            margin: 0;
+            font-weight: bold;
+        }
+        h1 {
+            font-size: 15pt;
+            margin-bottom: 2px;
+        }
+        h2 {
+            font-size: 12pt;
+            margin-top: 10px;
+            margin-bottom: 6px;
+        }
+        h3 {
+            font-size: 11pt;
+            margin-top: 9px;
+            margin-bottom: 5px;
+        }
+        p {
+            margin: 4px 0;
             text-align: justify;
-            font-family: Helvetica, sans-serif;
-            font-size: 10pt;
-            width: 85%;
-            margin: auto;
-            padding: auto;
+        }
+        .center {
+            text-align: center;
+        }
+        .bold {
+            font-weight: bold;
+        }
+        .upper {
+            text-transform: uppercase;
+        }
+        .section-title {
+            text-align: center;
+            font-weight: bold;
+            margin: 10px 0 6px;
+            text-decoration: underline;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 6px 0;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 4px 5px;
+            vertical-align: middle;
+        }
+        th {
+            text-align: center;
+            font-weight: bold;
+        }
+        .no-border,
+        .no-border td,
+        .no-border th {
+            border: none;
+        }
+        .small {
+            font-size: 9pt;
+        }
+        .tiny {
+            font-size: 8pt;
+        }
+        .signature-space {
+            height: 54px;
+        }
+        .page-break {
+            page-break-after: always;
+        }
+        .box {
+            border: 1px solid #000;
+            padding: 5px;
+        }
+        .nowrap {
+            white-space: nowrap;
         }
     </style>
 </head>
-
 <body>
-    <h4 style="text-align: center;">CONTRATO DE PRESTAMO PERSONAL</h4>
-    <p>Conste por el presente documento el contrato de mutuo que celebran de una parte: </p>
-    <p style="text-align: justify"><strong>{{ $companyName }}</strong> identificado con registro único de
-        contribuyente N° {{ $companyRuc }} que
-        se encuentra debidamente inscrita en la {{ $companyRegistry }}, y de la otra parte.
+    <h1>CONTRATO</h1>
+    <h2>POR ACUERDO MUTUO</h2>
+
+    <p>
+        Conste por el presente documento que celebran de una parte
+        <span class="bold upper">{{ $creditorName }}</span>
+        @if($companyRuc)
+            , identificado con RUC Nro. {{ $companyRuc }},
+        @endif
+        quien opera bajo el nombre comercial de <span class="bold upper">{{ $companyName }}</span>,
+        quien actúa en condición de <span class="bold">EL ACREEDOR</span>, y de la otra parte
+        <span class="bold">EL/LA/LOS DEUDOR(ES)</span>, persona(s) naturales que consignan sus datos personales
+        en el siguiente orden:
     </p>
 
-    <p>{{ $contract->name }}, identificado con D.N.I. N° {{ $contract->document }} de estado civil
-        {{ $contract->civil_status }} y con domicilio en {{ $contract->address }}, distrito de
-        {{ $contract->district_name != null ? $contract->district_name : '___________' }}, provincia de {{ $contract->province != null ? $contract->province : '___________' }}, departamento de {{ $contract->department != null ? $contract->department : '___________' }}; a quien en lo sucesivo se denominará
-        <strong>EL MUTUATARIO / CLIENTE.</strong>
-    </p>
-
-    <h4><strong><u>ANTECEDENTES:</u></strong></h4>
-    <p><strong>PRIMERA.- {{ $companyName }}</strong> es una persona jurídica dedicada a la concesión de créditos sin
-        intermediación financiera; Ante ello, mediante el presente contrato a solicitud de <strong>EL MUTUATARIO/
-            CLIENTE</strong> se otorga préstamo dinerario previa evaluación crediticia y cumpliendo con los requisitos
-        que requiera <strong>{{ $companyName }}.</strong></p>
-    <h4><strong><u>OBJETO DEL CONTRATO:</u></strong></h4>
-    <P><strong>SEGUNDA.-</strong> Por el presente contrato, <strong>{{ $companyName }}</strong> se obliga a
-        entregar en calidad de préstamo (mutuo Dinerario), en favor de EL MUTUATARIO / CLIENTE, la suma de S/
-        ({{ $contract->amount_in_words }} 00/100 nuevos soles). </P>
-    <p><strong>EL MUTUATARIO / CLIENTE</strong>, se obliga a devolver a <strong>{{ $companyName }}</strong>, la
-        suma de dinero estipulada en el párrafo anterior, conforme al calendario de pagos y condiciones pactadas en el
-        presente contrato.</p>
-    <h4><strong><u>OBLIGACIONES DE LAS PARTES:</u></strong></h4>
-    <p><strong>TERCERA.- {{ $companyName }}</strong> se obliga a entregar la suma de dinero objeto de la
-        prestación a su cargo en el momento de la firma de este documento, sin más constancia que las firmas de las
-        partes puestas en el comprobante de entrega en anexo 1 -A al presente contrato.</p>
-    <p><strong>CUARTA.- EL MUTUATARIO/ CLIENTE</strong> se obliga a devolver el íntegro del dinero objeto del mutuo, en
-        un plazo de {{ $contract->total_days }} días como máximo, a partir de la firma del presente contrato, su pago
-        será de manera
-        {{ $contract->quota_type }}, generando un interés de {{ $contract->percentage }}% mensual, el cual no podrá ser
-        modificado de manera
-        unilateral por {{ $companyName }}, salvo que implique condiciones más favorables para EL MUTUATARIO/
-        CLIENTE; Por tanto, EL MUTUATARIO/ CLIENTE devolverá la suma de S/
-        {{ number_format($contract->payable_amount, 2) }} (incluye seguro por S/ {{ number_format($contract->insurance_amount ?? 0, 2) }}) como
-        consecuencia del cumplimiento de la obligación pactada; Asimismo, se obliga a cumplir con el pago en las
-        oportunidades que se indican en el calendario de pagos, indicado en el anexo 1-B del presente contrato.
-    </p>
-    <p><strong>QUINTA.- EL MUTUATARIO/ CLIENTE</strong> autoriza que la empresa <strong>{{ $companyName }}</strong>, pueda efectuar el cobro de la obligación contraída y de cada cuota descrita en el cronograma
-        de pagos anexo 1-B, mediante personal debidamente acreditado, en el domicilio de <strong>EL MUTUATARIO/
-            CLIENTE</strong> declarado en el presente contrato.</p>
-    <p>En caso que <strong>EL MUTUATARIO/ CLIENTE</strong> efectúe pagos mediante aplicativos Yape, Plin, transferencia
-        bancaria, interbancaria, el pago será comunicado a <strong>{{ $companyName }}</strong> siendo la
-        empresa quien confirma el pago, comunicando el descargo de la cuota a <strong>EL MUTUATARIO/ CLIENTES.</strong>
-    </p>
-    <p style="text-align: justify;">Para la validez de todas las comunicaciones y notificaciones a las partes, con motivo de la ejecución de este
-        contrato, ambas señalan como sus respectivos domicilios los indicados en la introducción de este documento. El
-        cambio de domicilio de cualquiera de las partes surtirá efecto desde la fecha de comunicación de dicho cambio a
-        la otra parte, por cualquier medio escrito, y la aceptación debe ser previa evaluación de <strong>{{ $companyName }}.</strong></p>
-    <p><strong>SEXTA.- EL MUTUATARIO/ CLIENTE</strong> se obliga a cumplir fielmente con el cronograma de pagos indicado
-        en la cláusula
-        anterior. En caso de incumplimiento en el pago de una de las armadas, cualquiera que sea, quedarán vencidas
-        todas las demás, y en consecuencia <strong>{{ $companyName }}</strong> estará facultado para exigir el
-        pago del íntegro
-        de la suma de dinero mutuada, más los intereses que se generen, quedando facultado para efectuar acciones pre
-        judiciales y judiciales de cobranza para la recuperación del crédito.</p>
-    <p><strong>SEPTIMA.- EL MUTUATARIO/ CLIENTE</strong> autoriza el pago de S/ {{ number_format($contract->insurance_amount ?? 0, 2) }} adicional,
-        al integro de la obligación descrita en la cláusula Cuarta, por concepto de seguro.</p>
-    <p>OCTAVA.- En respaldo de la obligación asumida, frente a <strong>{{ $companyName }}</strong>, EL <strong>
-            MUTUATARIO/ CLIENTE</strong>,
-        suscribe un pagaré N° {{ str_pad($contract->number_pagare == null ? '______' : $contract->number_pagare, 6, '0', STR_PAD_LEFT) }} emitido en forma incompleta. Los importes que no sean pagados por EL
-        <strong>MUTUATARIO/ CLIENTE</strong>, en las oportunidades debidas devengarán por todo el tiempo que demore el
-        pago, más
-        intereses moratorios, compensatorios y gastos judiciales que genere la recuperación del crédito.
-    </p>
-    <p><strong>NOVENA.-</strong> Ambas partes convienen en que el presente contrato de mutuo se celebra a título
-        oneroso, en
-        consecuencia, EL <strong>MUTUATARIO/CLIENTE</strong> está obligado al pago de intereses compensatorios en favor
-        de <strong>{{ $companyName }}</strong>, de acuerdo a la tasa y forma de pago a que se refiere el primer párrafo de la
-        cláusula cuarta
-        del presente contrato.</p>
-    <p><strong>DECIMO.-</strong> En lo no previsto por las partes en el presente contrato, ambas se someten a lo
-        establecido por las normas del Código Civil y demás del sistema jurídico que resulten aplicables.</p>
-    <p>Para efectos de cualquier controversia que se genere con motivo de la celebración y ejecución de este contrato,
-        las partes se someten a la competencia territorial de los jueces y tribunales de la provincia de {{ $companyCity }}, </p>
-    <p>En señal de conformidad las partes suscriben este documento en la ciudad de {{ $companyCity }}, el día
-        {{ \Carbon\Carbon::parse($contract->date)->format('d/m') }} del
-        {{ \Carbon\Carbon::parse($contract->date)->format('Y') }}.
-    </p>
-
-    <br><br><br><br>
-
-    <table style="width: 100%; border: none;">
-        <tr>
-            <!-- Firma Empresa -->
-            <td style="width: 50%; text-align: center; vertical-align: top; padding-right: 10px;">
-                _______________________________________<br>
-                <strong>{{ $companyName }}</strong><br>
-                <strong>RUC N° {{ $companyRuc }}</strong><br>
-                <div style="font-size: 8pt; margin-top: 5px;">
-                    Poderes inscritos: {{ $companyRegistry }}.
-                </div>
-            </td>
-
-            <!-- Firma Cliente -->
-            <td style="width: 50%; text-align: center; vertical-align: top; padding-left: 10px;">
-                _______________________________________<br>
-                <strong>EL MUTUATARIO/ CLIENTE</strong><br>
-                <div style="margin-top: 5px;">
-                    {{ $contract->name }}<br>
-                    DNI: {{ $contract->document }}
-                </div>
-            </td>
-        </tr>
-    </table>
-    <div style="page-break-after: always;"></div>
-    <h4 style="text-align: center;"><strong>ANEXO 1 – A. –COMPROBANTE DE ENTREGA.</strong></h4>
-    <p style="margin: 3px 0; line-height: 1.3;">NUMERO DE CONTRATO: N° {{ $contract->id }}</p>
-    <p style="margin: 3px 0; line-height: 1.3;">RECIBI DE: <strong>{{ $companyName }}</strong></p>
-    <p style="margin: 3px 0; line-height: 1.3;">LA SUMA DE: ({{ $contract->amount_in_words }} 00/100 nuevos soles) </p>
-    <p style="margin: 3px 0; line-height: 1.3;">POR CONCEPTO: DE PRESTAMO DE DINERO PARA DEVOLVER</p>
-    <p style="margin: 3px 0; line-height: 1.3;">CLIENTE: {{ $contract->name }}</p>
-    <p style="margin: 3px 0; line-height: 1.3;">DNI N°: {{ $contract->document }}</p>
-
-    <P>RUTA / ASESOR</P>
-    <table style="width: 100%; border-collapse: collapse; border: 2px solid black; margin-top: 10px;">
+    <table>
         <thead>
-            <tr style="background-color: #f0f0f0;">
-                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 9pt;">NUMERO
-                    DE<br>PRÉSTAMO</th>
-                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 9pt;">APELLIDOS
-                    Y<br>NOMBRE DEL<br>CLIENTE</th>
-                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 9pt;">NUMERO<br>DE DNI
-                </th>
-                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 9pt;">DIRECCIÓN</th>
-                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 9pt;">MONTO</th>
-                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 9pt;">FIRMA.</th>
-            </tr>
-        </thead>
-        <tbody>
             <tr>
-                <td style="border: 1px solid black; padding: 10px; text-align: center;">{{ $contract->id }}</td>
-                <td style="border: 1px solid black; padding: 10px;">{{ $contract->name }}</td>
-                <td style="border: 1px solid black; padding: 10px;">{{ $contract->document }}</td>
-                <td style="border: 1px solid black; padding: 10px;">{{ $contract->address }}</td>
-                <td style="border: 1px solid black; padding: 10px;">{{ number_format($contract->requested_amount, 2) }}
-                </td>
-                <td style="border: 1px solid black; padding: 10px;">&nbsp;</td>
-            </tr>
-        </tbody>
-    </table>
-    <br>
-    <h4 style="text-align: center;"><strong>ANEXO 1 – B. –CRONOGRAMA DE PAGOS.</strong></h4>
-
-    <p style="text-align: justify;">
-        <strong>EL MUTUATARIO/ CLIENTE</strong>, bajo el presente documento deja constancia que toma conocimiento del
-        cronograma de pagos que se indica el contrato de MUTUO DINERARIO.
-    </p>
-
-    <p style="margin-top: 15px; margin-bottom: 5px;"><strong><u>Datos del Prestamo:</u></strong></p>
-
-    <table style="width: 100%; border: none; margin-bottom: 15px;">
-        <tr>
-            <td style="width: 33%; padding: 5px;">
-                <strong>Monto:</strong> S/. {{ number_format($contract->requested_amount, 2) }}
-            </td>
-            <td style="width: 34%; padding: 5px;">
-                <strong>Tasa:</strong> {{ $contract->percentage }}% mensual
-            </td>
-            <td style="width: 33%; padding: 5px;">
-                <strong>Cuotas:</strong> {{ $contract->quotas_number }}
-            </td>
-        </tr>
-        <tr>
-            <td colspan="2" style="padding: 5px;">
-                <strong>Monto a Devolver:</strong> S/. {{ number_format($contract->payable_amount, 2) }}
-            </td>
-            <td style="padding: 5px;">
-                <strong>Periodicidad:</strong> {{ strtoupper($contract->quota_type) }}
-            </td>
-        </tr>
-        {{-- <tr>
-            <td style="padding: 5px;">
-                <strong>Monto seguro:</strong> S/. {{ number_format($contract->insurance_amount ?? 0, 2) }}
-            </td>
-            <td colspan="2" style="padding: 5px;"></td>
-        </tr> --}}
-    </table>
-    <h4 style="text-align: center; margin-top: 20px; margin-bottom: 10px;">CRONOGRAMA</h4>
-
-    <table style="width: 100%; border-collapse: collapse; border: 2px solid black;">
-        <thead>
-            <tr style="background-color: #f0f0f0;">
-                <th style="border: 1px solid black; padding: 10px; text-align: center; font-weight: bold;">CUOTA</th>
-                <th style="border: 1px solid black; padding: 10px; text-align: center; font-weight: bold;">FECHA</th>
-                <th style="border: 1px solid black; padding: 10px; text-align: center; font-weight: bold;">TOTAL A PAGAR
-                </th>
+                <th style="width: 7%;">N°</th>
+                <th>APELLIDOS Y NOMBRES</th>
+                <th style="width: 16%;">DNI</th>
+                <th style="width: 28%;">DIRECCIÓN</th>
+                <th style="width: 15%;">ESTADO CIVIL</th>
             </tr>
         </thead>
         <tbody>
-            @foreach ($contract->quotas as $quota)
+            @foreach($debtors as $index => $debtor)
                 <tr>
-                    <td style="border: 1px solid black; padding: 8px; text-align: center;">{{ $quota->number }}</td>
-                    <td style="border: 1px solid black; padding: 8px; text-align: center;">
-                        {{ \Carbon\Carbon::parse($quota->date)->format('d/m/Y') }}</td>
-                    <td style="border: 1px solid black; padding: 8px; text-align: center;">S/.
-                        {{ number_format($quota->amount, 2) }}</td>
+                    <td class="center">{{ $index + 1 }}.1.</td>
+                    <td class="upper">{{ $debtor['name'] }}</td>
+                    <td class="center">{{ $debtor['document'] }}</td>
+                    <td class="upper">{{ $debtor['address'] }}</td>
+                    <td class="center upper">{{ $debtor['civil_status'] }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 
-    <br><br><br>
+    <div class="section-title">ANTECEDENTES</div>
+    <p>
+        <span class="bold">CLÁUSULA PRIMERA:</span> EL ACREEDOR es una persona natural o jurídica que ha logrado
+        de manera lícita, honrada e íntegra ahorrar un capital dinerario, el mismo que busca trabajar honestamente
+        a fin de brindar préstamo económico a personas naturales que, en casos de emergencia o necesidad particular,
+        lo soliciten libremente y sin coacción alguna.
+    </p>
+    <p>
+        <span class="bold">CLÁUSULA SEGUNDA:</span> EL/LA/LOS DEUDOR(ES) requiere(n), con carácter de urgencia y
+        para los fines pertinentes a su ocupación, necesidad laboral, familiar, de salud o de carácter particular,
+        un monto dinerario en calidad de préstamo.
+    </p>
+    <p>
+        <span class="bold">CLÁUSULA TERCERA:</span> EL ACREEDOR y EL/LA/LOS DEUDOR(ES) tienen pleno conocimiento
+        que la operación se celebra de buena fe, sin intimidación, engaño, dolo o cualquier acto prohibido por ley.
+    </p>
 
-    <table style="width: 100%; border: none;">
+    <div class="section-title">FORMALIDADES DEL CONTRATO</div>
+    <p>
+        <span class="bold">CLÁUSULA SEXTA: OBJETO DEL CONTRATO.</span> Por el presente contrato, las partes acuerdan
+        el préstamo del siguiente monto dinerario, el cual será entregado al prestatario, recibiendo de manera íntegra,
+        completa y sin ninguna restricción o disminución la suma que se precisa:
+    </p>
+
+    <table>
         <tr>
-            <td style="width: 35%; text-align: center; border-bottom: 2px solid black;">
-                &nbsp;
-            </td>
-            <td style="width: 30%;">
-                &nbsp;
-            </td>
-            <td style="width: 35%; text-align: center; border-bottom: 2px solid black;">
-                &nbsp;
-            </td>
+            <th style="width: 16%;">CRÉDITO N°</th>
+            <th style="width: 22%;">MONTO DEL PRÉSTAMO</th>
+            <th>FIRMA Y HUELLA DEL ACREEDOR</th>
+            <th>FIRMA Y HUELLA DEL DEUDOR(ES)</th>
         </tr>
         <tr>
-            <td style="width: 35%; text-align: center; padding-top: 2px;">
-                <strong>{{ $contract->name }}</strong>
+            <td class="center">{{ $contract->id }}</td>
+            <td>
+                <div><span class="bold">EN NÚMERO:</span> S/. {{ number_format($contract->requested_amount, 2) }}</div>
+                <div><span class="bold">EN LETRAS:</span> {{ $amountWords }}</div>
             </td>
-            <td style="width: 30%;">
-                &nbsp;
-            </td>
-            <td style="width: 35%; text-align: center; padding-top: 2px;">
-                <strong>{{ $companyName }}</strong>
-            </td>
+            <td class="signature-space"></td>
+            <td class="signature-space"></td>
         </tr>
     </table>
-    <div style="page-break-after: always;"></div>
-    <h2 style="text-align: center; margin-bottom: 20px;">PAGARE</h2>
-    
-    <p style="margin: 5px 0; line-height: 1.5;">
-        <strong>PAGARE N°</strong> : 
-        @if(empty($contract->number_pagare))
-            _____________________
-        @else
-            {{ str_pad($contract->number_pagare, 6, '0', STR_PAD_LEFT) }}
-        @endif
-    </p>
-    <p style="margin: 5px 0; line-height: 1.5;">
-        <strong>FECHA DE EMISIÓN:</strong> {{ \Carbon\Carbon::parse($contract->date)->format('d/m/Y') }}
-        <span style="float: right;"><strong>IMPORTE DEUDOR S/</strong> {{ number_format($contract->payable_amount, 2) }}</span>
-    </p>
-    <p style="margin: 5px 0; line-height: 1.5;">
-        <strong>IMPORTE ORIGINAL:</strong> {{ number_format($contract->requested_amount, 2) }}
-    </p>
-    <p style="margin: 5px 0; line-height: 1.5;">
-        <strong>FECHA DE VENCIMIENTO:</strong> {{ \Carbon\Carbon::parse($contract->last_payment_date)->format('d/m/Y') }}
-    </p>
-    <p style="margin: 5px 0; line-height: 1.5;">
-        <strong>YO:</strong> {{ $contract->name }}
-        <span style="float: right;"><strong>identificado con D.N.I. N.°</strong> {{ $contract->document }}</span>
+
+    <p>
+        <span class="bold">CLÁUSULA SÉTIMA: MODALIDAD DE PAGO.</span> EL ACREEDOR y EL/LA/LOS DEUDOR(ES) reconocen
+        que existe la siguiente modalidad de pago y tasa de interés correspondiente según modalidad elegida:
     </p>
 
-    <p style="margin-top: 15px;">
-        Reconozco/ reconemos que adeudo y pagare/pagaremos solidariamente, incondicionalmente en la fecha de
-        vencimientos consignado en el presente Pagaré, a la orden de <strong>{{ $companyName }}</strong> la
-        cantidad de S/ <u>{{ number_format($contract->payable_amount, 2) }}</u> soles, sin lugar a reclamo de alguna
-        clase, para cuyo fiel y exacto cumplimiento.
-    </p>
-
-    <h4 style="margin-top: 15px;"><strong>CLAUSULAS ESPECIALES.</strong></h4>
-
-    <ol style="text-align: justify; line-height: 1.4; font-size: 9pt;">
-        <li style="margin-bottom: 8px;">
-            Este pagaré debe ser pagado en la misma moneda que expresa el título valor.
-        </li>
-        <li style="margin-bottom: 8px;">
-            A su vencimiento, podrá de ser prorrogado por <strong>{{ $companyName }}</strong>, o por su tenedor
-            por el plazo que este señale en el mismo documento, sin que sea necesaria intervención alguna del obligado
-            principal.
-        </li>
-        <li style="margin-bottom: 8px;">
-            El importe de este Pagaré, y/o de las cuotas del crédito que representa, generará desde la fecha de emisión
-            hasta la fecha de su respectivo (s) vencimiento(s), un interés compensatorio que se pacta en la tasa de
-            <strong>{{ $contract->percentage }}%</strong> mensual.
-        </li>
-        <li style="margin-bottom: 8px;">
-            El importe deudor se les aplicará los intereses compensatorios e intereses moratorios a las tasas máximas
-            autorizadas por <strong>{{ $companyName }}</strong> o permitidas a su último Tenedor.
-            <br>
-            En caso de no ser cancelado el importe de una o más cuotas del crédito que representa este Pagaré, los
-            constituye en mora aplicándose los intereses moratorios desde la fecha de vencimiento hasta su total
-            cancelación, sin que sea necesario requerimiento alguno de pago para constituir mora al obligado principal,
-            incurriéndose en ésta automáticamente por el sólo hecho del vencimiento
-        </li>
-        <li style="margin-bottom: 8px;">
-            El deudor acepta que la tasa de interés compensatorio y/o moratorio pueden ser variadas por <strong>{{ $companyName }}</strong> y /o su ultimo tenedor sin necesidad de aviso previo, de acuerdo a las tasas que
-            ésta tenga vigente.
-        </li>
-        <li style="margin-bottom: 8px;">
-            Este título no está sujeto a protesto por falta de pago, salvo lo dispuesto en el artículo 81.2 de la ley 27287
-            y sus normas complementarias.
-        </li>
-        <li style="margin-bottom: 8px;">
-            La empresa <strong>{{ $companyName }}</strong> y/o tenedor podrá entablar acción judicial para efectuar
-            el cobro de este Pagaré donde lo tuviera conveniente, para todos los efectos y consecuencias que pudieran
-            derivarse de la emisión del presente Pagaré, el indicado en este documento, lugar donde se enviaran los avisos y
-            se harán llegar todas las comunicaciones y/o notificaciones judiciales que resulten necesarias. El presente
-            Pagaré está sujeto a la Ley Peruana de Títulos Valores vigente a la fecha de suscripción de Pagaré.
-        </li>
-    </ol>
-
-    <p style="text-align: right; margin-top: 30px;">
-        {{ $companyCity }} __________________ 2026.
-    </p>
-
-    <table style="width: 100%; border-collapse: collapse; border: 2px solid black; margin-top: 20px;">
+    <table>
         <thead>
-            <tr style="background-color: #f0f0f0;">
-                <th style="border: 2px solid black; padding: 8px; text-align: center; font-size: 9pt; width: 30%;">
-                    N° Apellidos y<br>nombres
-                </th>
-                <th style="border: 2px solid black; padding: 8px; text-align: center; font-size: 9pt; width: 15%;">
-                    DNI N°
-                </th>
-                <th style="border: 2px solid black; padding: 8px; text-align: center; font-size: 9pt; width: 25%;">
-                    Dirección
-                </th>
-                <th style="border: 2px solid black; padding: 8px; text-align: center; font-size: 9pt; width: 20%;">
-                    Firma
-                </th>
-                <th style="border: 2px solid black; padding: 8px; text-align: center; font-size: 9pt; width: 20%;">
-                    Huella
-                </th>
+            <tr>
+                <th>PAGO</th>
+                <th>TASA COMPENSATORIA</th>
+                <th>TASA MORATORIA</th>
             </tr>
         </thead>
         <tbody>
             <tr>
-                <td style="border: 2px solid black; padding: 20px 8px; height: 80px;">{{ $contract->name }}</td>
-                <td style="border: 2px solid black; padding: 20px 8px;">{{ $contract->document }}</td>
-                <td style="border: 2px solid black; padding: 20px 8px;">{{ $contract->address }}</td>
-                <td style="border: 2px solid black; padding: 30px 8px;"></td>
-                <td style="border: 2px solid black; padding: 40px 8px;">&nbsp;</td>
+                <td class="center">SEMANAL</td>
+                <td class="center">{{ $contract->percentage }}% por un mes de 4 semanas</td>
+                <td class="center">S/ 0.50 por cada día de mora por S/ 100.00</td>
+            </tr>
+            <tr>
+                <td class="center">QUINCENAL</td>
+                <td class="center">{{ $contract->percentage }}% por 1 mes de 2 quincenas</td>
+                <td class="center">S/ 0.70 por cada día de mora por S/ 100.00</td>
             </tr>
         </tbody>
     </table>
-    
-</body>
 
+    <table>
+        <tr>
+            <th>NOMBRE DEL CLIENTE</th>
+            <th>FIRMA Y HUELLA DEL ACREEDOR</th>
+            <th>FIRMA Y HUELLA DEL DEUDOR(ES)</th>
+        </tr>
+        <tr>
+            <td class="upper">{{ $debtors[0]['name'] ?? '' }}</td>
+            <td class="signature-space center">
+                <div>{{ $sellerName }}</div>
+                <div class="tiny">ASESOR</div>
+            </td>
+            <td class="signature-space"></td>
+        </tr>
+    </table>
+
+    <p>
+        <span class="bold">CLÁUSULA OCTAVA: DE LOS PLAZOS ESTABLECIDOS.</span> Las partes tienen presente que la
+        duración del presente contrato no debe extenderse más allá de la modalidad de pago y cronograma respectivo.
+        De no cumplirse, EL/LA/LOS DEUDOR(ES) se somete(n) a las acciones legales correspondientes.
+    </p>
+    <p>
+        <span class="bold">CLÁUSULA NOVENA:</span> En armonía con los artículos 1351, 1354, 1359, 1361 y 1362 del
+        Código Civil peruano, las partes declaran conocer los términos del presente contrato y dejan constancia que
+        no ha mediado dolo, coacción, engaño, deslealtad o cualquier acción destinada a invalidarlo.
+    </p>
+    <p>
+        <span class="bold">CLÁUSULA DÉCIMA:</span> Queda expresamente convenido que EL ACREEDOR comprenderá cualquier
+        hecho fortuito o fuerza mayor que retrase el cumplimiento de pago, siempre que EL/LA/LOS DEUDOR(ES) comunique(n)
+        oportunamente la situación y asuma(n) la mora correspondiente.
+    </p>
+
+    <div class="section-title">OBLIGACIONES Y FACULTADES DE LAS PARTES</div>
+    <p><span class="bold">CLÁUSULA DÉCIMO PRIMERA:</span> Corresponde a EL ACREEDOR:</p>
+    <p class="small">
+        11.1. Entregar la totalidad de la suma pactada en calidad de préstamo.
+        11.2. No hostigar, acosar o intimidar para el objeto de cobranza.
+        11.3. Adjuntar cronograma de pago con fechas según modalidad aceptada.
+        11.4. Entregar cartilla de pagos para firma y sello.
+        11.5. Entregar juego original del presente contrato.
+    </p>
+    <p><span class="bold">Corresponderá a EL/LA/LOS DEUDOR(ES):</span></p>
+    <p class="small">
+        11.7. Entregar copia de su DNI. 11.8. Realizar la misma firma que corresponde a su DNI.
+        11.9. No consignar dirección errónea o falsa.
+        11.10. Comunicar cambio de domicilio con 3 días de anticipación.
+        11.11. Pagar oportunamente.
+        11.12. Señalar un número de celular activo.
+    </p>
+
+    <div class="section-title">RESOLUCIÓN DEL CONTRATO</div>
+    <p>
+        <span class="bold">CLÁUSULA DÉCIMO SEGUNDA:</span> El incumplimiento de una o más cláusulas constituirá
+        causal de resolución del contrato, produciéndose de pleno derecho cuando EL ACREEDOR comunique el incumplimiento
+        al domicilio real de EL/LA/LOS DEUDOR(ES).
+    </p>
+
+    <div class="section-title">APLICACIÓN SUPLETORIA DE LA LEY</div>
+    <p>
+        <span class="bold">CLÁUSULA DÉCIMO TERCERA:</span> En todo lo no previsto por las partes, ambas se someten
+        a la Ley de Conciliación Extrajudicial, el Código Civil y demás normas aplicables.
+    </p>
+
+    <div class="section-title">COMPETENCIA JURISDICCIONAL</div>
+    <p>
+        <span class="bold">CLÁUSULA DÉCIMO CUARTA:</span> Las controversias se priorizarán mediante conciliación
+        extrajudicial. De corresponder, ambas partes se someten a la jurisdicción del Poder Judicial de la ciudad de
+        {{ $companyCity }}.
+    </p>
+
+    <div class="section-title">CLÁUSULAS EXCEPCIONALES</div>
+    <p>
+        <span class="bold">CLÁUSULA ESPECIAL:</span> En caso EL/LA/LOS DEUDOR(ES) fuese(n) persona(s) iletrada(s),
+        deberá(n) comparecer con testigo a ruego. Las partes declaran responsabilidad absoluta sobre la licitud del dinero
+        y reconocen que gastos administrativos, impresiones, copias o legalizaciones serán asumidos por EL/LA/LOS
+        DEUDOR(ES), cuando correspondan.
+    </p>
+    <p>
+        <span class="bold">CLÁUSULA SUJETA A LOS ANEXOS:</span> EL ACREEDOR adjunta al presente contrato:
+        Anexo 1: Cronograma de pagos. Anexo 2: Cartilla para firma y sello de pagos realizados.
+    </p>
+
+    <p>
+        En señal de conformidad con todos los acuerdos pactados en el presente contrato, las partes suscriben este
+        documento estableciendo firma, huella digital, nombres completos y número de DNI.
+    </p>
+
+    <table class="no-border" style="margin-top: 24px;">
+        <tr>
+            <td class="center" style="width: 50%;">
+                _______________________________<br>
+                <span class="bold">PRESTAMISTA</span><br>
+                {{ $creditorName }}<br>
+                @if($companyRuc) RUC: {{ $companyRuc }} @endif
+            </td>
+            <td class="center" style="width: 50%;">
+                _______________________________<br>
+                <span class="bold">PRESTATARIO</span><br>
+                {{ $debtors[0]['name'] ?? '' }}<br>
+                DNI: {{ $debtors[0]['document'] ?? '' }}
+            </td>
+        </tr>
+        <tr>
+            <td class="center" style="padding-top: 28px;">
+                _______________________________<br>
+                {{ $sellerName }}<br>
+                ASESOR
+            </td>
+            <td></td>
+        </tr>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h2>MODELO</h2>
+    <h2>Anexo 2: Cartilla para firma y sello de pagos realizados.</h2>
+    <h1>CARTILLA</h1>
+    <table>
+        <tr>
+            <th style="width: 24%;">MODALIDAD DE PAGO</th>
+            <td class="center bold">{{ $quotaType }}</td>
+            <th>FIRMA Y HUELLA DEL ACREEDOR</th>
+            <th>FIRMA Y HUELLA DEL DEUDOR(ES)</th>
+        </tr>
+    </table>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 13%;">CUOTA</th>
+                <th style="width: 22%;">FECHA</th>
+                <th style="width: 22%;">MONTO</th>
+                <th>FIRMA / SELLO</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($contract->quotas as $quota)
+                <tr>
+                    <td class="center">{{ $quotaType === 'SEMANAL' ? 'SEMANA' : 'CUOTA' }} {{ $quota->number }}</td>
+                    <td class="center">{{ \Carbon\Carbon::parse($quota->date)->format('d/m/Y') }}</td>
+                    <td class="center">S/. {{ number_format($quota->amount, 2) }}</td>
+                    <td style="height: 28px;"></td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h2>ANEXO 1: CRONOGRAMA DE PAGOS</h2>
+    <table>
+        <tr>
+            <th>CRÉDITO N°</th>
+            <td>{{ $contract->id }}</td>
+            <th>FECHA CONTRATO</th>
+            <td>{{ $contractDate->format('d/m/Y') }}</td>
+        </tr>
+        <tr>
+            <th>CLIENTE</th>
+            <td colspan="3" class="upper">{{ $debtors[0]['name'] ?? '' }}</td>
+        </tr>
+        <tr>
+            <th>MONTO PRESTADO</th>
+            <td>S/. {{ number_format($contract->requested_amount, 2) }}</td>
+            <th>MONTO A DEVOLVER</th>
+            <td>S/. {{ number_format($contract->payable_amount, 2) }}</td>
+        </tr>
+        <tr>
+            <th>TASA</th>
+            <td>{{ $contract->percentage }}%</td>
+            <th>CUOTAS</th>
+            <td>{{ $contract->quotas_number }}</td>
+        </tr>
+        <tr>
+            <th>SEGURO</th>
+            <td>S/. {{ number_format($contract->insurance_amount ?? 0, 2) }}</td>
+            <th>VENCIMIENTO</th>
+            <td>{{ $lastPaymentDate ? $lastPaymentDate->format('d/m/Y') : '' }}</td>
+        </tr>
+    </table>
+
+    <table>
+        <thead>
+            <tr>
+                <th>CUOTA</th>
+                <th>FECHA DE PAGO</th>
+                <th>TOTAL A PAGAR</th>
+                <th>SALDO</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($contract->quotas as $quota)
+                <tr>
+                    <td class="center">{{ $quota->number }}</td>
+                    <td class="center">{{ \Carbon\Carbon::parse($quota->date)->format('d/m/Y') }}</td>
+                    <td class="center">S/. {{ number_format($quota->amount, 2) }}</td>
+                    <td class="center">S/. {{ number_format($quota->debt, 2) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h1>PAGARÉ</h1>
+    <p><span class="bold">PAGARÉ N°:</span> {{ str_pad($contract->number_pagare ?: $contract->id, 6, '0', STR_PAD_LEFT) }}</p>
+    <p>
+        <span class="bold">FECHA DE EMISIÓN:</span> {{ $contractDate->format('d/m/Y') }}
+        <span style="float: right;"><span class="bold">IMPORTE DEUDOR S/</span> {{ number_format($contract->payable_amount, 2) }}</span>
+    </p>
+    <p><span class="bold">IMPORTE ORIGINAL:</span> S/. {{ number_format($contract->requested_amount, 2) }}</p>
+    <p><span class="bold">FECHA DE VENCIMIENTO:</span> {{ $lastPaymentDate ? $lastPaymentDate->format('d/m/Y') : '' }}</p>
+    <p>
+        <span class="bold">YO/NOSOTROS:</span> {{ collect($debtors)->pluck('name')->implode(', ') }},
+        identificado(s) con DNI N° {{ collect($debtors)->pluck('document')->implode(', ') }}.
+    </p>
+    <p>
+        Reconozco/reconocemos que adeudo/adeudamos y pagaré/pagaremos solidariamente e incondicionalmente, en la fecha
+        de vencimiento consignada en el presente pagaré, a la orden de <span class="bold">{{ $creditorName }}</span>,
+        la cantidad de S/. {{ number_format($contract->payable_amount, 2) }} soles, sin lugar a reclamo alguno.
+    </p>
+
+    <h3>CLÁUSULAS ESPECIALES</h3>
+    <p>1. Este pagaré debe ser pagado en la misma moneda que expresa el título valor.</p>
+    <p>2. El importe del presente pagaré genera interés compensatorio pactado en la tasa de {{ $contract->percentage }}%.</p>
+    <p>3. En caso de incumplimiento, los obligados incurren en mora automática desde el vencimiento hasta su total cancelación.</p>
+    <p>4. Este título no está sujeto a protesto por falta de pago, salvo disposición legal aplicable.</p>
+
+    <table style="margin-top: 18px;">
+        <thead>
+            <tr>
+                <th>N° APELLIDOS Y NOMBRES</th>
+                <th>DNI N°</th>
+                <th>DIRECCIÓN</th>
+                <th>FIRMA</th>
+                <th>HUELLA</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($debtors as $index => $debtor)
+                <tr>
+                    <td style="height: 48px;">{{ $index + 1 }}. {{ $debtor['name'] }}</td>
+                    <td class="center">{{ $debtor['document'] }}</td>
+                    <td>{{ $debtor['address'] }}</td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+</body>
 </html>
