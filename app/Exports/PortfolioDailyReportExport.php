@@ -334,9 +334,9 @@ class PortfolioDailyReportExport implements FromArray, ShouldAutoSize, WithEvent
             $totals[11],                                            // CREC. CARTERA
             $this->percent($this->totalOverdueDebt(), $totals[10]), // MORA >7
             $totals[13],                                            // DESEMB. MES PASADO
-            $totals[14],                                            // NÂ° OPER. MES PASADO
+            $totals[14],                                            // N° OPER. MES PASADO
             $totals[15],                                            // AVANCE DESEMBOLSOS
-            $totals[16],                                            // NÂ° OPER.
+            $totals[16],                                            // N° OPER.
             $totals[17],                                            // META MES
             $this->percent($totals[15], $totals[17]),               // AVANCE DESEMB. %
         ];
@@ -404,8 +404,8 @@ class PortfolioDailyReportExport implements FromArray, ShouldAutoSize, WithEvent
                 $sheet->getStyle('N3:N' . $lastRow)->getNumberFormat()->setFormatCode('"S/" #,##0.0');                      // DESEMB. MES PASADO
                 $sheet->getStyle('P3:P' . $lastRow)->getNumberFormat()->setFormatCode('"S/" #,##0');                        // AVANCE DESEMBOLSOS
                 $sheet->getStyle('R3:R' . $lastRow)->getNumberFormat()->setFormatCode('"S/" #,##0');                        // META MES
-                $sheet->getStyle('O3:O' . $lastRow)->getNumberFormat()->setFormatCode('#,##0');                             // NÂ° OPER. MES PASADO
-                $sheet->getStyle('Q3:Q' . $lastRow)->getNumberFormat()->setFormatCode('#,##0');                             // NÂ° OPER.
+                $sheet->getStyle('O3:O' . $lastRow)->getNumberFormat()->setFormatCode('#,##0');                             // N° OPER. MES PASADO
+                $sheet->getStyle('Q3:Q' . $lastRow)->getNumberFormat()->setFormatCode('#,##0');                             // N° OPER.
                 $sheet->getStyle('F3:F' . $lastRow)->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_PERCENTAGE_00);  // % clientes
                 $sheet->getStyle('I3:I' . $lastRow)->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_PERCENTAGE_00);  // % nuevos
                 $sheet->getStyle('M3:M' . $lastRow)->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_PERCENTAGE_00);  // MORA >7

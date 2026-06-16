@@ -100,7 +100,7 @@
                     </div>
                     <div class="col-md-3">
                         <div class="mb-3">
-                            <label class="form-label">Registros por pÃ¡gina</label>
+                            <label class="form-label">Registros por página</label>
                             <select class="form-select" name="per_page">
                                 <option value="10" @selected((string) request()->per_page === '10' || !request()->filled('per_page'))>10</option>
                                 <option value="100" @selected((string) request()->per_page === '100')>100</option>
@@ -114,7 +114,7 @@
                 <a href="{{ route('contracts.index') }}" class="btn btn-danger">Limpiar</a>
             </form>
         </div>
-        <div class="table-responsive">
+        <div class="table-responsive" id="contractsTableWrapper">
             <table class="table card-table table-vcenter">
                 <thead>
                     <tr>
@@ -131,7 +131,7 @@
                         <th>interés</th>
                         <th>Monto a pagar</th>
                         <th>Monto seguro</th>
-                        <th>Fecha de prestamo</th>
+                        <th>Fecha de préstamo</th>
                         <th>Tipo de cuotas</th>
                         <th>Estado</th>
                         <th>Aprob.</th>
@@ -217,7 +217,7 @@
             </table>
         </div>
         @if ($contracts->hasPages())
-            <div class="card-footer d-flex align-items-center">
+            <div class="card-footer d-flex align-items-center" id="contractsPagination">
                 {{ $contracts->withQueryString()->links() }}
             </div>
         @endif
@@ -292,16 +292,16 @@
                             </div>
                             <div class="col-lg-4" id="divPhone">
                                 <div class="mb-3">
-                                    <label class="form-label required">Teléfono</label>
+                                    <label class="form-label">Teléfono</label>
                                     <input type="text" class="form-control" name="phone" id="phone"
                                         autocomplete="off">
                                 </div>
                             </div>
                             <div class="col-lg-4" id="divAddress">
                                 <div class="mb-3">
-                                    <label class="form-label required">Dirección</label>
+                                    <label class="form-label">Dirección</label>
                                     <input type="text" class="form-control" name="address" id="address"
-                                        autocomplete="off" required>
+                                        autocomplete="off">
                                 </div>
                             </div>
                             <div class="col-lg-4" id="divDepartment">
@@ -333,7 +333,7 @@
                             </div>
                             <div class="col-lg-4" id="divReference">
                                 <div class="mb-3">
-                                    <label class="form-label required">Referencia</label>
+                                    <label class="form-label">Referencia</label>
                                     <input type="text" class="form-control" name="reference" id="reference"
                                         autocomplete="off">
                                 </div>
@@ -418,7 +418,7 @@
                                 </div>
                                 <div class="col-lg-4">
                                     <div class="mb-3">
-                                        <label class="form-label required">DirecciÃ³n</label>
+                                        <label class="form-label">Dirección</label>
                                         <input type="text" class="form-control" name="addresses[]"
                                             autocomplete="off">
                                     </div>
@@ -445,7 +445,7 @@
                                 </div>
                                 <div class="col-lg-4">
                                     <div class="mb-3">
-                                        <label class="form-label required">DirecciÃ³n</label>
+                                        <label class="form-label">Dirección</label>
                                         <input type="text" class="form-control" name="addresses[]"
                                             autocomplete="off">
                                     </div>
@@ -489,11 +489,11 @@
                             </div>
                             <div class="col-lg-4">
                                 <div class="mb-3">
-                                    <label class="form-label required">Fecha de prestamo</label>
+                                    <label class="form-label required">Fecha de préstamo</label>
                                     @if (auth()->user()->hasRole('operations'))
                                         <input type="date" class="form-control" id="date_display" name="date_disabled"
                                             value="{{ now()->format('Y-m-d') }}" autocomplete="off" disabled>
-                                        {{-- input hidden para asegurar que la fecha se envÃ­e en el formulario aun cuando el campo estÃ© disabled --}}
+                                        {{-- input hidden para asegurar que la fecha se envíe en el formulario aun cuando el campo esté disabled --}}
                                         <input type="hidden" id="date" name="date" value="{{ now()->format('Y-m-d') }}">
                                     @else
                                         <input type="date" class="form-control" id="date" name="date"
@@ -612,7 +612,7 @@
                 <div class="modal-body">
                     <p>El cliente tiene una deuda pendiente de: S/<b id="past-debt"></b></p>
                     <p>El nuevo contrato cuenta con una deuda total de : S/<b id="contract-debt"></b></p>
-                    <p>El monto entregado deberÃ¡ ser de : S/<b id="difference"></b></p>
+                    <p>El monto entregado deberá ser de : S/<b id="difference"></b></p>
                     <p class="text-danger" id="warning"></p>
                 </div>
                 <div class="modal-footer">
@@ -631,6 +631,34 @@
     <script>
         var totalDebt = 0;
         var isHydratingContractForm = false;
+
+        function refreshContractsTable() {
+            return $.ajax({
+                url: window.location.href,
+                method: 'GET'
+            }).done(function(html) {
+                var $response = $('<div>').html(html);
+                var $newTable = $response.find('#contractsTableWrapper').first();
+                var $newPagination = $response.find('#contractsPagination').first();
+
+                if ($newTable.length) {
+                    $('#contractsTableWrapper').replaceWith($newTable);
+                }
+
+                var $currentPagination = $('#contractsPagination');
+                if ($newPagination.length) {
+                    if ($currentPagination.length) {
+                        $currentPagination.replaceWith($newPagination);
+                    } else {
+                        $('.card').append($newPagination);
+                    }
+                } else {
+                    $currentPagination.remove();
+                }
+
+                syncBulkDeleteState();
+            });
+        }
 
         function getBootstrapModal(modalSelector) {
             var modalElement = document.querySelector(modalSelector);
@@ -841,18 +869,18 @@
             $('.ts-document, #divGroup input[name="documents[]"]').each(function() {
                 initTomSelect($(this));
             });
-            // Exponer helper para filas agregadas dinÃ¡micamente.
+            // Exponer helper para filas agregadas dinámicamente.
             window.initContractDocumentSelect = initTomSelect;
             // Fallback: si alguna fila se agrega sin clase ts-document, se inicializa al enfocar.
             $(document).on('focus', '#divGroup input[name="documents[]"]', function() {
                 initTomSelect($(this));
             });
 
-            // ValidaciÃ³n del campo meses segÃºn tipo de cuota
+            // Validación del campo meses según tipo de cuota
             var $months = $('input[name="months_number"]');
             var $typeQuota = $('select[name="type_quota"]');
 
-            // Cambiar atributo step segÃºn tipo de cuota
+            // Cambiar atributo step según tipo de cuota
             $typeQuota.on('change', function() {
                 $months.attr('step', '1');
             });
@@ -894,7 +922,7 @@
                 },
                 error: function() {
                     ToastError.fire({
-                        text: 'Ocurrio un error'
+                        text: 'Ocurrió un error'
                     });
                 }
             })
@@ -932,7 +960,7 @@
                 },
                 error: function() {
                     ToastError.fire({
-                        text: 'Ocurrio un error'
+                        text: 'Ocurrió un error'
                     });
                 }
             });
@@ -966,7 +994,7 @@
                 },
                 error: function() {
                     ToastError.fire({
-                        text: 'Ocurrio un error al cargar las provincias'
+                        text: 'Ocurrió un error al cargar las provincias'
                     });
                 }
             });
@@ -997,7 +1025,7 @@
                 },
                 error: function() {
                     ToastError.fire({
-                        text: 'OcurriÃ³ un error al cargar los distritos'
+                        text: 'Ocurrió un error al cargar los distritos'
                     });
                 }
             });
@@ -1063,7 +1091,7 @@
                         ToastMessage.fire({
                                 text: 'Registro guardado'
                             })
-                            .then(() => location.reload());
+                        .then(() => refreshContractsTable());
 
                     } else {
                         ToastError.fire({
@@ -1116,19 +1144,19 @@
                             $('#document').val(data.document);
                         }
 
-                        $('#name').val(data.name);
-                        $('#phone').val(data.phone);
-                        $('#address').val(data.address);
-                        $('#reference').val(data.reference);
-                        $('#home_type').val(data.home_type);
-                        $('#business_line').val(data.business_line);
-                        $('#business_address').val(data.business_address);
+                        $('#name').val(normalizeDataValue(data.name));
+                        $('#phone').val(normalizeDataValue(data.phone));
+                        $('#address').val(normalizeDataValue(data.address));
+                        $('#reference').val(normalizeDataValue(data.reference));
+                        $('#home_type').val(normalizeDataValue(data.home_type));
+                        $('#business_line').val(normalizeDataValue(data.business_line));
+                        $('#business_address').val(normalizeDataValue(data.business_address));
                         if(data.business_start_date) {
                             $('#business_start_date').val(data.business_start_date.split('T')[0]);
                         }
-                        $('#civil_status').val(data.civil_status).trigger('change');
-                        $('#husband_name').val(data.husband_name);
-                        $('#husband_document').val(data.husband_document);
+                        $('#civil_status').val(normalizeDataValue(data.civil_status)).trigger('change');
+                        $('#husband_name').val(normalizeDataValue(data.husband_name));
+                        $('#husband_document').val(normalizeDataValue(data.husband_document));
 
                         if(data.district) {
                             $('#department_id').val(data.district.province.department_id);
@@ -1203,11 +1231,11 @@
                             ToastMessage.fire({
                                     text: 'Registro eliminado'
                                 })
-                                .then(() => location.reload());
+                                .then(() => refreshContractsTable());
                         },
                         error: function(err) {
                             ToastError.fire({
-                                text: 'Ocurrio un error'
+                                text: 'Ocurrió un error'
                             });
                         }
                     });
@@ -1257,11 +1285,11 @@
                             ToastMessage.fire({
                                     text: data.deleted_count + ' contrato(s) eliminado(s)'
                                 })
-                                .then(() => location.reload());
+                                .then(() => refreshContractsTable());
                         },
                         error: function(err) {
                             ToastError.fire({
-                                text: err.responseJSON?.error || 'Ocurrio un error al eliminar los contratos'
+                                text: err.responseJSON?.error || 'Ocurrió un error al eliminar los contratos'
                             });
                         }
                     });
@@ -1287,11 +1315,13 @@
             var client_type = $(this).val();
 
             if (client_type == 'Personal') {
-
-                $('#storeForm')[0].reset();
-                // Limpiar selects de provincia y distrito
-                $('#province_id').html('<option value="">Seleccionar</option>');
-                $('#district_id').html('<option value="">Seleccionar</option>');
+                if (!isHydratingContractForm) {
+                    $('#storeForm')[0].reset();
+                    // Limpiar selects de provincia y distrito
+                    $('#province_id').html('<option value="">Seleccionar</option>');
+                    $('#district_id').html('<option value="">Seleccionar</option>');
+                    setContractDate();
+                }
 
                 $('#divDocument').show();
                 $('#divName').show();
@@ -1369,7 +1399,7 @@
             if ($('#divGroup').children().length > 2) {
                 $('#divGroup').children().last().remove();
             } else {
-                console.log('Deben haber 2 personas mÃ­nimo para grupo');
+                console.log('Deben haber 2 personas mínimo para grupo');
             }
         });
 
@@ -1387,7 +1417,7 @@
                                 ToastMessage.fire({
                                         text: 'Contrato aprobado'
                                     })
-                                    .then(() => location.reload());
+                                    .then(() => refreshContractsTable());
                             } else {
                                 ToastError.fire({
                                     text: 'Ocurrió un error'

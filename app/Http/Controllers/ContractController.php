@@ -214,7 +214,7 @@ class ContractController extends Controller
             'insurance_cost' => 'required|numeric|min:0',
         ]);
 
-        $validator->sometimes(['document', 'name', 'phone', 'reference', 'address'], 'required', function ($request) {
+        $validator->sometimes(['document', 'name'], 'required', function ($request) {
             return $request->client_type == 'Personal';
         });
 
@@ -484,7 +484,7 @@ class ContractController extends Controller
             'insurance_cost' => 'required|numeric|min:0',
         ]);
 
-        $validator->sometimes(['document', 'name', 'phone', 'reference', 'address'], 'required', function ($request) {
+        $validator->sometimes(['document', 'name'], 'required', function ($request) {
             return $request->client_type == 'Personal';
         });
 
