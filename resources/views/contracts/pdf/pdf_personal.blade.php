@@ -3,6 +3,8 @@
     $companyName = $company ? $company->name : 'INVERSIONES SV CAPITAL';
     $companyRuc = $company ? $company->ruc : '';
     $companyCity = $company ? ($company->city ?: 'Piura') : 'Piura';
+    $documentMode = $documentMode ?? 'pdf';
+    $companyLogoWidth = $documentMode === 'word' ? 135 : 245;
     $companyLogoPath = $company && $company->logo ? $company->logo : 'assets/images/logo.png';
     $companyLogoPath = ltrim(str_replace('\\', '/', $companyLogoPath), '/');
     $companyLogoSrc = null;
@@ -141,18 +143,17 @@
         }
         .document-logo {
             text-align: center;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
         .document-logo img {
-            max-width: 190px;
-            max-height: 72px;
+            height: auto;
         }
     </style>
 </head>
 <body>
     @if($companyLogoSrc)
         <div class="document-logo">
-            <img src="{{ $companyLogoSrc }}" alt="Logo {{ $companyName }}">
+            <img src="{{ $companyLogoSrc }}" alt="Logo {{ $companyName }}" width="{{ $companyLogoWidth }}" style="width: {{ $companyLogoWidth }}px; height: auto;">
         </div>
     @endif
 

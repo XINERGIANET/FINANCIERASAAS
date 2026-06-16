@@ -1060,7 +1060,8 @@ class ContractController extends Controller
         $dompdf = new Dompdf($options);
 
         // Renderizar la vista
-        $html = view('contracts.pdf.pdf_personal', compact('contract'))->render();
+        $documentMode = 'pdf';
+        $html = view('contracts.pdf.pdf_personal', compact('contract', 'documentMode'))->render();
 
         // Cargar HTML y generar PDF
         $dompdf->loadHtml($html);
@@ -1078,7 +1079,8 @@ class ContractController extends Controller
         $this->authorizeContractDocument($contract);
 
         $contract = $this->prepareContractDocumentData($contract);
-        $html = view('contracts.pdf.pdf_personal', compact('contract'))->render();
+        $documentMode = 'word';
+        $html = view('contracts.pdf.pdf_personal', compact('contract', 'documentMode'))->render();
 
         return response($html, 200)
             ->header('Content-Type', 'application/msword; charset=UTF-8')
