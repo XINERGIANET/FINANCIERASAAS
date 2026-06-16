@@ -1011,6 +1011,11 @@ class ContractController extends Controller
     } */
     public function pdfPersonal(Request $request, Contract $contract)
     {
+        $company = $contract->company ?? auth()->user()->company;
+        if (!$company || !$company->hasPermission('contract_pdf')) {
+            abort(403, 'La financiera no tiene habilitado el PDF de contrato.');
+        }
+
         // Configurar opciones de DomPDF manualmente
         $options = new Options();
         $options->set('isHtml5ParserEnabled', true);

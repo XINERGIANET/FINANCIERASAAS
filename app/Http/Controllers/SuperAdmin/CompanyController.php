@@ -29,9 +29,13 @@ class CompanyController extends Controller
         'reporte_cartera_morosa' => 'Inicio: Cartera Morosa',
     ];
 
+    const FEATURES = [
+        'contract_pdf' => 'Contratos: PDF de contrato',
+    ];
+
     public static function allPermissionModules(): array
     {
-        return array_merge(self::MODULES, self::DASHBOARD_REPORTS);
+        return array_merge(self::MODULES, self::DASHBOARD_REPORTS, self::FEATURES);
     }
 
     public function index()
