@@ -15,6 +15,7 @@ use App\Models\Config;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\Advisor;
 use App\Models\Contract;
+use App\Models\Payment;
 use App\Models\Quota;
 use App\Models\User;
 use App\Models\Pdf as PdfModel;
@@ -451,13 +452,6 @@ class ContractController extends Controller
 
     public function update(Request $request, Contract $contract)
     {
-        if ($contract->quotas()->where('paid', '>', 0)->exists() || $contract->paid > 0) {
-            return response()->json([
-                'status' => false,
-                'error' => 'No se puede editar porque ya tiene cuotas pagadas.'
-            ]);
-        }
-
         $validator = Validator::make($request->all(), [
             'client_type' => 'required',
             'documents.*' => 'nullable|size:8|distinct',
@@ -498,6 +492,19 @@ class ContractController extends Controller
 
         $validator->after(function ($validator) use ($request, $contract) {
             $user = auth()->user();
+            $newQuotasNumber = (int) ceil((float) $request->months_number);
+            $lastPaidQuotaNumber = (int) $contract->quotas()
+                ->where(function ($query) {
+                    $query->where('paid', '>', 0)
+                        ->orWhereHas('payments', function ($paymentQuery) {
+                            $paymentQuery->active();
+                        });
+                })
+                ->max('number');
+
+            if ($lastPaidQuotaNumber > 0 && $newQuotasNumber < $lastPaidQuotaNumber) {
+                $validator->errors()->add('months_number', 'No se puede reducir el número de cuotas por debajo de cuotas ya pagadas.');
+            }
 
             if (!$user || !$user->hasRole('seller')) {
                 return;
@@ -640,9 +647,12 @@ class ContractController extends Controller
             $contract->save();
 
             if ($contract->approved) {
-                $contract->quotas()->delete();
-                $this->createQuotas($contract);
+                $this->syncContractQuotasAfterUpdate($contract, $quota_dates);
             }
+
+            $contract->update([
+                'paid' => $contract->quotas()->where('paid', 0)->count() === 0 ? 1 : 0,
+            ]);
 
             DB::commit();
         } catch (\Exception $e) {
@@ -656,6 +666,114 @@ class ContractController extends Controller
         return response()->json([
             'status' => true
         ]);
+    }
+
+    private function syncContractQuotasAfterUpdate(Contract $contract, array $quotaDates): void
+    {
+        $existingQuotas = $contract->quotas()->with('payments')->get()->keyBy('number');
+        $validNumbers = collect($quotaDates)->pluck('number')->all();
+
+        foreach ($quotaDates as $quotaData) {
+            $amount = round((float) $quotaData['amount'], 2);
+            $quota = $existingQuotas->get($quotaData['number']);
+
+            if (!$quota) {
+                Quota::create([
+                    'contract_id' => $contract->id,
+                    'number' => $quotaData['number'],
+                    'amount' => $amount,
+                    'debt' => $amount,
+                    'date' => $quotaData['date'],
+                    'paid' => 0,
+                ]);
+                continue;
+            }
+
+            if ((int) $quota->paid === 1) {
+                $quota->update([
+                    'amount' => $amount,
+                    'debt' => 0,
+                    'date' => $quotaData['date'],
+                    'paid' => 1,
+                ]);
+                $this->syncPaidQuotaPayments($quota, $amount);
+                continue;
+            }
+
+            $paidAmount = round((float) $quota->payments()->active()->sum('amount'), 2);
+            $debt = max(round($amount - $paidAmount, 2), 0);
+
+            $quota->update([
+                'amount' => $amount,
+                'debt' => $debt,
+                'date' => $quotaData['date'],
+                'paid' => $debt <= 0 ? 1 : 0,
+            ]);
+
+            if ($debt <= 0 && $paidAmount > 0) {
+                $this->syncPaidQuotaPayments($quota, $amount);
+            }
+        }
+
+        $contract->quotas()
+            ->whereNotIn('number', $validNumbers)
+            ->where('paid', 0)
+            ->whereDoesntHave('payments', function ($query) {
+                $query->active();
+            })
+            ->delete();
+    }
+
+    private function syncPaidQuotaPayments(Quota $quota, float $newAmount): void
+    {
+        $payments = $quota->payments()->active()->orderBy('id')->get();
+
+        if ($payments->isEmpty()) {
+            return;
+        }
+
+        $oldTotal = round((float) $payments->sum('amount'), 2);
+        if ($oldTotal <= 0) {
+            return;
+        }
+
+        $remaining = round($newAmount, 2);
+        $balanceBefore = round($newAmount, 2);
+        $lastIndex = $payments->count() - 1;
+
+        foreach ($payments as $index => $payment) {
+            $amount = $index === $lastIndex
+                ? $remaining
+                : round($newAmount * ((float) $payment->amount / $oldTotal), 2);
+
+            $remaining = round($remaining - $amount, 2);
+            $balanceAfter = max(round($balanceBefore - $amount, 2), 0);
+            $payment->update(['amount' => $amount]);
+
+            if ($payment->payment_transaction_id) {
+                DB::table('payment_transaction_details')
+                    ->where('payment_id', $payment->id)
+                    ->where('quota_id', $quota->id)
+                    ->update([
+                        'quota_balance_before' => $balanceBefore,
+                        'amount_applied' => $amount,
+                        'quota_balance_after' => $balanceAfter,
+                    ]);
+            }
+
+            $balanceBefore = $balanceAfter;
+        }
+
+        $transactionIds = $payments->pluck('payment_transaction_id')->filter()->unique();
+        foreach ($transactionIds as $transactionId) {
+            DB::table('payment_transactions')
+                ->where('id', $transactionId)
+                ->update([
+                    'total_amount' => Payment::active()
+                        ->where('payment_transaction_id', $transactionId)
+                        ->sum('amount'),
+                ]);
+        }
     }
 
     private function createQuotas(Contract $contract)
