@@ -29,6 +29,17 @@ class ContractController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
+        $allowedPerPage = [10, 100, 500, 1000];
+        $perPage = (int) $request->input('per_page', 10);
+        if (!in_array($perPage, $allowedPerPage, true)) {
+            $perPage = 10;
+        }
+
+        $payableOrder = $request->input('payable_order');
+        if (!in_array($payableOrder, ['asc', 'desc'], true)) {
+            $payableOrder = null;
+        }
+
         $contracts = Contract::active()->when($user->hasRole('seller'), function ($query) use ($user) {
             return $query->where('seller_id', $user->id);
         })->when($request->name, function ($query, $name) {
@@ -41,7 +52,13 @@ class ContractController extends Controller
             return $query->whereDate('date', '>=', $start_date);
         })->when($request->end_date, function ($query, $end_date) {
             return $query->whereDate('date', '<=', $end_date);
-        })->with('quotas')->latest('date')->latest('id')->paginate(20);
+        })->with('quotas')
+            ->when($payableOrder, function ($query, $payableOrder) {
+                return $query->orderBy('payable_amount', $payableOrder)->orderByDesc('id');
+            }, function ($query) {
+                return $query->latest('date')->latest('id');
+            })
+            ->paginate($perPage);
 
         // Mapear el tipo de cuota numérico a texto legible
         $quotaTypeMap = [1 => 'Semanal', 2 => 'Quincenal', 4 => 'Mensual'];
