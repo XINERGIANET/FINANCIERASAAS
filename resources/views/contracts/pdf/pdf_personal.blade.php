@@ -3,6 +3,24 @@
     $companyName = $company ? $company->name : 'INVERSIONES SV CAPITAL';
     $companyRuc = $company ? $company->ruc : '';
     $companyCity = $company ? ($company->city ?: 'Piura') : 'Piura';
+    $companyLogoPath = $company && $company->logo ? $company->logo : 'assets/images/logo.png';
+    $companyLogoPath = ltrim(str_replace('\\', '/', $companyLogoPath), '/');
+    $companyLogoSrc = null;
+    $companyLogoFullPath = public_path($companyLogoPath);
+
+    if ($companyLogoPath && is_file($companyLogoFullPath)) {
+        $extension = strtolower(pathinfo($companyLogoFullPath, PATHINFO_EXTENSION));
+        $mimeTypes = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'svg' => 'image/svg+xml',
+            'webp' => 'image/webp',
+        ];
+        $mimeType = $mimeTypes[$extension] ?? 'image/png';
+        $companyLogoSrc = 'data:' . $mimeType . ';base64,' . base64_encode(file_get_contents($companyLogoFullPath));
+    }
     $creditorName = $companyName;
     $sellerName = optional($contract->seller)->name ?: 'ASESOR';
     $quotaType = strtoupper($contract->quota_type ?: 'SEMANAL');
@@ -121,9 +139,23 @@
         .nowrap {
             white-space: nowrap;
         }
+        .document-logo {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .document-logo img {
+            max-width: 190px;
+            max-height: 72px;
+        }
     </style>
 </head>
 <body>
+    @if($companyLogoSrc)
+        <div class="document-logo">
+            <img src="{{ $companyLogoSrc }}" alt="Logo {{ $companyName }}">
+        </div>
+    @endif
+
     <h1>CONTRATO</h1>
     <h2>POR ACUERDO MUTUO</h2>
 

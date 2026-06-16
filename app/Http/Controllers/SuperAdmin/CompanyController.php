@@ -30,7 +30,7 @@ class CompanyController extends Controller
     ];
 
     const FEATURES = [
-        'contract_pdf' => 'Contratos: PDF de contrato',
+        'contract_pdf' => 'Contratos: PDF y Word de contrato',
     ];
 
     public static function allPermissionModules(): array

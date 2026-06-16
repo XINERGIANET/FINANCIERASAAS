@@ -65,6 +65,7 @@ Route::middleware('auth')->group(function () {
 	Route::delete('contracts/bulk-delete', [ContractController::class, 'bulkDestroy'])->name('contracts.bulk-destroy');
 	Route::get('contracts/{contract}/pdf', [ContractController::class, 'pdf'])->name('contracts.pdf');
 	Route::get('contracts/{contract}/pdfPersonal', [ContractController::class, 'pdfPersonal'])->name('contracts.pdfPersonal');
+	Route::get('contracts/{contract}/wordPersonal', [ContractController::class, 'wordPersonal'])->name('contracts.wordPersonal');
 	Route::get('contracts/excel', [ContractController::class, 'excel'])->name('contracts.excel');
 	Route::resource('contracts', ContractController::class);
 

@@ -1011,10 +1011,7 @@ class ContractController extends Controller
     } */
     public function pdfPersonal(Request $request, Contract $contract)
     {
-        $company = $contract->company ?? auth()->user()->company;
-        if (!$company || !$company->hasPermission('contract_pdf')) {
-            abort(403, 'La financiera no tiene habilitado el PDF de contrato.');
-        }
+        $this->authorizeContractDocument($contract);
 
         // Configurar opciones de DomPDF manualmente
         $options = new Options();
@@ -1075,6 +1072,63 @@ class ContractController extends Controller
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'inline; filename="contrato_personal_' . $contract->id . '.pdf"');
     }
+
+    public function wordPersonal(Request $request, Contract $contract)
+    {
+        $this->authorizeContractDocument($contract);
+
+        $contract = $this->prepareContractDocumentData($contract);
+        $html = view('contracts.pdf.pdf_personal', compact('contract'))->render();
+
+        return response($html, 200)
+            ->header('Content-Type', 'application/msword; charset=UTF-8')
+            ->header('Content-Disposition', 'attachment; filename="contrato_personal_' . $contract->id . '.doc"')
+            ->header('Cache-Control', 'max-age=0');
+    }
+
+    private function authorizeContractDocument(Contract $contract): void
+    {
+        $company = $contract->company ?? auth()->user()->company;
+        if (!$company || !$company->hasPermission('contract_pdf')) {
+            abort(403, 'La financiera no tiene habilitado el documento de contrato.');
+        }
+    }
+
+    private function prepareContractDocumentData(Contract $contract): Contract
+    {
+        $contract->load('company', 'seller', 'district.province.department', 'quotas');
+
+        $contract->amount_in_words = $this->convertToWords($contract->requested_amount);
+        $contract->district_name = $contract->district ? $contract->district->name : '';
+        $contract->province = $contract->district && $contract->district->province ? $contract->district->province->name : '';
+        $contract->department = $contract->district && $contract->district->department ? $contract->district->department->name : '';
+
+        $contract->quota_type = 'No definido';
+        if ($contract->quotas && $contract->quotas->count() > 1) {
+            $firstDate = Carbon::parse($contract->quotas->first()->date);
+            $secondDate = Carbon::parse($contract->quotas->skip(1)->first()->date);
+            $daysDiff = $firstDate->diffInDays($secondDate);
+
+            if ($daysDiff >= 25 && $daysDiff <= 35) {
+                $contract->quota_type = 'Mensual';
+            } elseif ($daysDiff >= 12 && $daysDiff <= 16) {
+                $contract->quota_type = 'Quincenal';
+            } elseif ($daysDiff >= 5 && $daysDiff <= 9) {
+                $contract->quota_type = 'Semanal';
+            }
+        }
+
+        if ($contract->date && $contract->last_payment_date) {
+            $startDate = $contract->date instanceof \Carbon\Carbon ? $contract->date : Carbon::parse($contract->date);
+            $endDate = $contract->last_payment_date instanceof \Carbon\Carbon ? $contract->last_payment_date : Carbon::parse($contract->last_payment_date);
+            $contract->total_days = $startDate->diffInDays($endDate);
+        } else {
+            $contract->total_days = 0;
+        }
+
+        return $contract;
+    }
+
     public function pdf(Request $request, Contract $contract)
     {
         // Cargar cuotas para determinar el tipo de cuota

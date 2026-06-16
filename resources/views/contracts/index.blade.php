@@ -162,6 +162,10 @@
                                                 class="btn btn-primary btn-icon" title="PDF contrato">
                                                 <i class="ti ti-file-text icon"></i>
                                             </a>
+                                            <a href="{{ route('contracts.wordPersonal', $contract) }}"
+                                                class="btn btn-secondary btn-icon" title="Word editable">
+                                                <i class="ti ti-file-type-doc icon"></i>
+                                            </a>
                                         @endif
                                         @if (auth()->user()->hasRole('admin', 'operations', 'seller'))
                                             @if (!$contract->approved)
