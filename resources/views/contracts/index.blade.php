@@ -92,9 +92,8 @@
                         <div class="mb-3">
                             <label class="form-label">Orden monto a pagar</label>
                             <select class="form-select" name="payable_order">
-                                <option value="">Por defecto</option>
+                                <option value="asc" @selected(!request()->filled('payable_order') || request()->payable_order === 'asc')>Menor a mayor</option>
                                 <option value="desc" @selected(request()->payable_order === 'desc')>Mayor a menor</option>
-                                <option value="asc" @selected(request()->payable_order === 'asc')>Menor a mayor</option>
                             </select>
                         </div>
                     </div>
@@ -102,9 +101,9 @@
                         <div class="mb-3">
                             <label class="form-label">Registros por página</label>
                             <select class="form-select" name="per_page">
-                                <option value="10" @selected((string) request()->per_page === '10' || !request()->filled('per_page'))>10</option>
+                                <option value="10" @selected((string) request()->per_page === '10')>10</option>
                                 <option value="100" @selected((string) request()->per_page === '100')>100</option>
-                                <option value="500" @selected((string) request()->per_page === '500')>500</option>
+                                <option value="500" @selected((string) request()->per_page === '500' || !request()->filled('per_page'))>500</option>
                                 <option value="1000" @selected((string) request()->per_page === '1000')>1000</option>
                             </select>
                         </div>
@@ -632,6 +631,16 @@
         var totalDebt = 0;
         var isHydratingContractForm = false;
 
+        function normalizeDataValue(v) {
+            if (v === undefined || v === null) return '';
+            if (typeof v !== 'string') return v;
+            v = v.trim();
+            if (v === '') return '';
+            var low = v.toLowerCase();
+            if (low === 'null' || low === 'undefined') return '';
+            return v;
+        }
+
         function refreshContractsTable() {
             return $.ajax({
                 url: window.location.href,
@@ -764,22 +773,11 @@
                     },
                     onItemAdd: function(value, item) {
                         var dataset = item.dataset || {};
-
-                        function normalizeDataValue(v) {
-                            if (v === undefined || v === null) return '';
-                            if (typeof v !== 'string') return v;
-                            v = v.trim();
-                            if (v === '') return '';
-                            var low = v.toLowerCase();
-                            if (low === 'null' || low === 'undefined') return '';
-                            return v;
-                        }
                         if (isMain) {
                             // llenar campos globales
                             if (dataset.name == 'undefined') {
                                 $('#name').val('');
                             } else {
-                                console.log('onItemAdd dataset:', dataset);
                                 $('#name').val(dataset.name || '');
                                 $('#phone').val(dataset.phone == 'null' ? '' : (dataset.phone || ''));
                                 $('#address').val(dataset.address == 'null' ? '' : (dataset.address ||

@@ -30,14 +30,14 @@ class ContractController extends Controller
     {
         $user = auth()->user();
         $allowedPerPage = [10, 100, 500, 1000];
-        $perPage = (int) $request->input('per_page', 10);
+        $perPage = (int) $request->input('per_page', 500);
         if (!in_array($perPage, $allowedPerPage, true)) {
-            $perPage = 10;
+            $perPage = 500;
         }
 
-        $payableOrder = $request->input('payable_order');
+        $payableOrder = $request->input('payable_order', 'asc');
         if (!in_array($payableOrder, ['asc', 'desc'], true)) {
-            $payableOrder = null;
+            $payableOrder = 'asc';
         }
 
         $contracts = Contract::active()->when($user->hasRole('seller'), function ($query) use ($user) {
