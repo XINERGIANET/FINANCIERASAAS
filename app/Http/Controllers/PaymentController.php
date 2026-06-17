@@ -117,12 +117,12 @@ class PaymentController extends Controller
             return $query->whereDate('date', '>=', $start_date);
         })->when($request->end_date, function($query, $end_date){
             return $query->whereDate('date', '<=', $end_date);
-        })->where('paid', 0)->orderBy('date')->paginate(20);
+        })->where('debt', '>', 0)->orderBy('date')->paginate(20);
 
         $payment_methods = PaymentMethod::active()->get();
 
         $nextQuotas = Quota::whereIn('contract_id', $quotas->pluck('contract_id'))
-            ->where('paid', 0)
+            ->where('debt', '>', 0)
             ->groupBy('contract_id')
             ->select('contract_id', DB::raw('MIN(number) as next_number'))
             ->get()
@@ -151,12 +151,12 @@ class PaymentController extends Controller
             return $query->whereRaw('DATEDIFF(?, date) >= ?', [now()->format('Y-m-d'), $from_days]);
         })->when($request->to_days, function($query, $to_days){
             return $query->whereRaw('DATEDIFF(?, date) <= ?', [now()->format('Y-m-d'), $to_days]);
-        })->whereDate('date', '<', $date)->where('paid', 0)->with('contract.seller')->paginate(20);
+        })->whereDate('date', '<', $date)->where('debt', '>', 0)->with('contract.seller')->paginate(20);
 
         $payment_methods = PaymentMethod::active()->get();
 
         $nextQuotas = Quota::whereIn('contract_id', $quotas->pluck('contract_id'))
-            ->where('paid', 0)
+            ->where('debt', '>', 0)
             ->groupBy('contract_id')
             ->select('contract_id', DB::raw('MIN(number) as next_number'))
             ->get()
@@ -198,7 +198,7 @@ class PaymentController extends Controller
                 }
 
                 $previousQuota = Quota::where('contract_id', $quota->contract_id)
-                    ->where('paid', 0)
+                    ->where('debt', '>', 0)
                     ->where('number', '<', $quota->number)
                     ->exists();
 
@@ -264,14 +264,14 @@ class PaymentController extends Controller
                 'people' => $people
             ]);
 
-            $paid = $request->amount == $quota->debt ? 1 : 0;
+            $remainingDebt = max(round((float) $quota->debt - (float) $request->amount, 2), 0);
 
             $quota->update([
-                'debt' => $quota->debt - $request->amount,
-                'paid' => $paid
+                'debt' => $remainingDebt,
+                'paid' => $remainingDebt <= 0 ? 1 : 0
             ]);
 
-            $quotas = Quota::where('contract_id', $quota->contract_id)->where('paid', 0);
+            $quotas = Quota::where('contract_id', $quota->contract_id)->where('debt', '>', 0);
 
             if($quotas->count() == 0){
                 $quota->contract()->update([
@@ -335,7 +335,7 @@ class PaymentController extends Controller
             $contractId = $contractIds->first();
             $pendingQuotas = Quota::active()
                 ->where('contract_id', $contractId)
-                ->where('paid', 0)
+                ->where('debt', '>', 0)
                 ->orderBy('number')
                 ->get()
                 ->values();
@@ -413,7 +413,7 @@ class PaymentController extends Controller
                 }
 
                 $contract->update([
-                    'paid' => $contract->quotas()->where('paid', 0)->count() === 0 ? 1 : 0,
+                    'paid' => $contract->quotas()->where('debt', '>', 0)->count() === 0 ? 1 : 0,
                 ]);
             });
         } catch (\Throwable $e) {

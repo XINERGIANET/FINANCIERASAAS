@@ -270,7 +270,7 @@
                                 <div class="mb-3">
                                     <label class="form-label required">Nombre</label>
                                     <input type="text" class="form-control" name="name" id="name"
-                                        autocomplete="off" readonly>
+                                        autocomplete="off">
                                 </div>
                             </div>
                             <div class="col-lg-4" id="divPhone">
@@ -731,6 +731,7 @@
                         var dataset = item.dataset || {};
                         if (isMain) {
                             // llenar campos globales
+                            $('#name').prop('readonly', false);
                             if (dataset.name == 'undefined') {
                                 $('#name').val('');
                             } else {
@@ -769,7 +770,7 @@
                         } else {
                             // si es un DNI de grupo, rellenar solo los campos de la fila correspondiente
                             var $row = $($input).closest('.row');
-                            $row.find('input[name="names[]"]').val(normalizeDataValue(dataset.name));
+                            $row.find('input[name="names[]"]').prop('readonly', false).val(normalizeDataValue(dataset.name));
                             $row.find('input[name="addresses[]"]').val(normalizeDataValue(dataset
                                 .address));
                         }
@@ -850,6 +851,7 @@
             var dni = $('#document').val().trim();
 
             if (dni.length != 8) {
+                $('#name').prop('readonly', false).focus();
                 return;
             }
 
@@ -866,15 +868,17 @@
                     Swal.close();
 
                     if (data.status) {
-                        $('#name').attr('readonly', true);
+                        $('#name').prop('readonly', false);
                         $('#name').val(data.name);
                     } else {
                         $('#name').val('');
-                        $('#name').attr('readonly', false);
+                        $('#name').prop('readonly', false);
                         $('#name').focus();
                     }
                 },
                 error: function() {
+                    Swal.close();
+                    $('#name').prop('readonly', false).focus();
                     ToastError.fire({
                         text: 'Ocurrió un error'
                     });
@@ -890,6 +894,7 @@
 
             if (dni.length != 8) {
                 $nameInput.val('');
+                $nameInput.prop('readonly', false).focus();
                 return;
             }
 
@@ -904,15 +909,17 @@
                 success: function(data) {
                     Swal.close();
                     if (data.status) {
-                        $nameInput.attr('readonly', true);
+                        $nameInput.prop('readonly', false);
                         $nameInput.val(data.name);
                     } else {
                         $nameInput.val('');
-                        $nameInput.attr('readonly', false);
+                        $nameInput.prop('readonly', false);
                         $nameInput.focus();
                     }
                 },
                 error: function() {
+                    Swal.close();
+                    $nameInput.prop('readonly', false).focus();
                     ToastError.fire({
                         text: 'Ocurrió un error'
                     });

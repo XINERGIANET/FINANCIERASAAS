@@ -79,8 +79,8 @@
 					<td>{{ optional($quota->contract)->client() }}</td>
 					<td>{{ optional($quota->contract->seller)->name }}</td>
 					<td>{{ $quota->number }}</td>
-					<td>{{ $quota->amount }}</td>
-					<td>{{ $quota->debt }}</td>
+					<td>{{ number_format($quota->amount, 2) }}</td>
+					<td>{{ number_format($quota->debt, 2) }}</td>
 					<td>{{ $quota->date->format('d/m/Y') }}</td>
 					<td>{{ $quota->date->diffInDays(now()) }}</td>
 					<td>
@@ -91,7 +91,7 @@
 							data-contract-id="{{ $quota->contract_id }}"
 							{{ $isNext ? '' : 'disabled' }}
 							data-quota-id="{{ $quota->id }}"
-							data-amount="{{ $quota->debt }}"
+							data-amount="{{ number_format($quota->debt, 2, '.', '') }}"
 							data-client="{{ $quota->contract->client() }}"
 							data-people="{{ $quota->contract->people }}"
 							title="{{ $isNext ? 'Cobrar' : 'Debe cobrar la cuota anterior' }}">

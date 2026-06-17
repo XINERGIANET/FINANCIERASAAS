@@ -81,7 +81,7 @@
 							@endphp
 							<tr>
 								<td>
-									@if($quota->paid == 0)
+									@if(round((float) $quota->debt, 2) > 0)
 										<input type="checkbox"
 											class="form-check-input passive-quota-checkbox"
 											value="{{ $quota->id }}"
@@ -93,14 +93,14 @@
 								<td>{{ optional($quota->contract)->client() }}</td>
 								<td>{{ $quota->number }}</td>
 								<td>{{ optional($quota->contract)->quotas_number }}</td>
-								<td>{{ $quota->amount }}</td>
-								<td>{{ $quota->debt }}</td>
+								<td>{{ number_format($quota->amount, 2) }}</td>
+								<td>{{ number_format($quota->debt, 2) }}</td>
 								<td>{{ $quota->date->format('d/m/Y') }}</td>
 								<td>
-									@if($quota->paid == 0)
+									@if(round((float) $quota->debt, 2) > 0)
 										<button class="btn btn-primary btn-pay" data-contract-id="{{ $quota->contract_id }}"
 											{{ $isNext ? '' : 'disabled' }}
-											data-quota-id="{{ $quota->id }}" data-amount="{{ $quota->debt }}"
+											data-quota-id="{{ $quota->id }}" data-amount="{{ number_format($quota->debt, 2, '.', '') }}"
 											data-client="{{ $quota->contract->client() }}" data-people="{{ $quota->contract->people }}"
 											title="{{ $isNext ? 'Cobrar' : 'Debe cobrar la cuota anterior' }}">
 											<i class="ti ti-cash"></i>
