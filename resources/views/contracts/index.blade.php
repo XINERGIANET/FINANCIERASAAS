@@ -88,6 +88,15 @@
                             <input type="date" class="form-control" name="end_date" value="{{ request()->end_date }}">
                         </div>
                     </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Monto seguro</label>
+                            <select class="form-select" name="insurance_filter">
+                                <option value="">Todos</option>
+                                <option value="zero" @if (request()->insurance_filter === 'zero') selected @endif>Solo seguro 0</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 <button class="btn btn-primary">Filtrar</button>
                 <a href="{{ route('contracts.index') }}" class="btn btn-danger">Limpiar</a>

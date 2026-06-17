@@ -59,6 +59,9 @@ class ContractsImportDataExport implements WithMultipleSheets
             ->when($this->filters['end_date'] ?? null, function ($query, $endDate) {
                 return $query->whereDate('date', '<=', $endDate);
             })
+            ->when(($this->filters['insurance_filter'] ?? null) === 'zero', function ($query) {
+                return $query->where('insurance_amount', 0);
+            })
             ->latest('date')
             ->latest('id')
             ->get();

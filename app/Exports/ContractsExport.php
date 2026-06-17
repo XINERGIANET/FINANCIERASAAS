@@ -39,6 +39,9 @@ class ContractsExport implements FromCollection, WithHeadings, WithMapping, With
             ->when($request->end_date, function ($query, $end_date) {
                 return $query->whereDate('date', '<=', $end_date);
             })
+            ->when($request->insurance_filter === 'zero', function ($query) {
+                return $query->where('insurance_amount', 0);
+            })
             ->latest('date')
             ->latest('id')
             ->get();

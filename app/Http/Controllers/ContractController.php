@@ -44,6 +44,8 @@ class ContractController extends Controller
             return $query->whereDate('date', '>=', $start_date);
         })->when($request->end_date, function ($query, $end_date) {
             return $query->whereDate('date', '<=', $end_date);
+        })->when($request->insurance_filter === 'zero', function ($query) {
+            return $query->where('insurance_amount', 0);
         })->with('quotas')
             ->latest('date')
             ->latest('id')
@@ -135,6 +137,7 @@ class ContractController extends Controller
             'seller_id',
             'start_date',
             'end_date',
+            'insurance_filter',
         ])), $name);
     }
 
