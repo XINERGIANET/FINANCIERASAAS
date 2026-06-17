@@ -80,7 +80,7 @@ class PaymentsExport implements FromCollection, WithHeadings, WithMapping, WithS
             'Capital',
             'Interés',
             'Seguro',
-            'Monto',
+            'Monto pagado',
             'Método de pago',
             'Fecha de pago',
             'Días de mora',

@@ -100,7 +100,7 @@
                         <th class="text-end">Capital</th>
                         <th class="text-end">Interés</th>
                         <th class="text-end">Seguro</th>
-                        <th class="text-end">Monto</th>
+                        <th class="text-end">Monto pagado</th>
                         <th>Método de pago</th>
                         <th>Fecha de pago</th>
                         <th>Días de mora</th>
