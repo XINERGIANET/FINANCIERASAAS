@@ -100,6 +100,7 @@
                         <th class="text-end">Capital</th>
                         <th class="text-end">Interés</th>
                         <th class="text-end">Seguro</th>
+                        <th class="text-end">Monto de cuota</th>
                         <th class="text-end">Monto pagado</th>
                         <th>Método de pago</th>
                         <th>Fecha de pago</th>
@@ -122,6 +123,7 @@
                                 <td class="text-end">S/{{ number_format($breakdown['capital'], 2) }}</td>
                                 <td class="text-end">S/{{ number_format($breakdown['interest'], 2) }}</td>
                                 <td class="text-end">S/{{ number_format($breakdown['insurance'], 2) }}</td>
+                                <td class="text-end">S/{{ number_format(optional($payment->quota)->amount ?? 0, 2) }}</td>
                                 <td class="text-end">S/{{ number_format($payment->amount, 2) }}</td>
                                 <td>{{ optional($payment->payment_method)->name }}</td>
                                 <td>{{ $payment->date->format('d/m/Y') }}</td>
@@ -160,7 +162,7 @@
                         @endforeach
                     @else
                         <tr>
-                            <td colspan="10" align="center">No se han encontrado resultados</td>
+                            <td colspan="11" align="center">No se han encontrado resultados</td>
                         </tr>
                     @endif
                 </tbody>
@@ -280,8 +282,8 @@
                             </div>
                             <div class="col-lg-6">
                                 <div class="mb-3">
-                                    <label class="form-label required">Monto</label>
-                                    <input type="text" class="form-control" disabled id="editAmount">
+                                    <label class="form-label required">Monto pagado</label>
+                                    <input type="text" class="form-control" name="amount" id="editAmount">
                                 </div>
                             </div>
                             <div class="col-lg-6">
@@ -300,6 +302,13 @@
                                 <div class="mb-3">
                                     <label class="form-label required">Fecha</label>
                                     <input type="text" class="form-control" disabled id="editDate">
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Imagen del pago</label>
+                                    <input type="file" class="form-control" name="image" id="editImage"
+                                        accept=".jpg,.jpeg,.png,.webp">
                                 </div>
                             </div>
                         </div>
@@ -469,6 +478,7 @@
                     $('#editPaymentMethodId').val(data.payment_method_id);
                     $('#editDate').val(data.date);
                     $('#editId').val(data.id);
+                    $('#editImage').val('');
                     $('#editModal').modal('show');
                 },
                 error: function(err) {
@@ -484,11 +494,15 @@
             e.preventDefault();
 
             var id = $('#editId').val();
+            var fd = new FormData(this);
+            fd.append('_method', 'PATCH');
 
             $.ajax({
                 url: '{{ route('payments.index') }}' + '/' + id + '',
-                method: 'PATCH',
-                data: $(this).serialize(),
+                method: 'POST',
+                processData: false,
+                contentType: false,
+                data: fd,
                 success: function(data) {
                     if (data.status) {
                         $('#editModal').modal('hide');

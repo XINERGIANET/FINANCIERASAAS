@@ -15,6 +15,7 @@ use App\Models\Contract;
 use App\Models\Quota;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
+use App\Models\PaymentTransactionDetail;
 use App\Models\User;
 use App\Services\MultiPaymentService;
 use RuntimeException;
@@ -523,8 +524,24 @@ class PaymentController extends Controller
 
     public function update(Request $request, Payment $payment){
         $validator = Validator::make($request->all(), [
-            'payment_method_id' => 'required'
+            'amount' => 'required|numeric|min:0.1',
+            'payment_method_id' => 'required|exists:payment_methods,id',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
+
+        $quota = $payment->quota;
+
+        $validator->after(function ($validator) use ($request, $payment, $quota) {
+            if (!$quota) {
+                $validator->errors()->add('quota', 'La cuota no se encuentra.');
+                return;
+            }
+
+            $availableAmount = round((float) $quota->debt + (float) $payment->amount, 2);
+            if (round((float) $request->amount, 2) > $availableAmount) {
+                $validator->errors()->add('amount', 'El monto pagado no puede superar el saldo disponible de la cuota.');
+            }
+        });
 
         if($validator->fails()){
             return response()->json([
@@ -533,9 +550,77 @@ class PaymentController extends Controller
             ]);
         }
 
-        $payment->update([
-            'payment_method_id' => $request->payment_method_id
-        ]);
+        DB::beginTransaction();
+
+        try {
+            $oldAmount = round((float) $payment->amount, 2);
+            $newAmount = round((float) $request->amount, 2);
+            $newDebt = max(round((float) $quota->debt + $oldAmount - $newAmount, 2), 0);
+            $oldImage = $payment->image;
+            $image = $oldImage;
+
+            if ($request->hasFile('image')) {
+                $image = $request->file('image')->store('payments', 'public');
+            }
+
+            $payment->update([
+                'amount' => $newAmount,
+                'payment_method_id' => $request->payment_method_id,
+                'image' => $image,
+            ]);
+
+            $quota->update([
+                'debt' => $newDebt,
+                'paid' => $newDebt <= 0 ? 1 : 0,
+            ]);
+
+            $contract = $quota->contract;
+            if ($contract) {
+                $contract->update([
+                    'paid' => $contract->quotas()->where('debt', '>', 0)->count() === 0 ? 1 : 0,
+                ]);
+            }
+
+            $detail = PaymentTransactionDetail::where('payment_id', $payment->id)->first();
+            if ($detail) {
+                $balanceAfter = max(round((float) $detail->quota_balance_before - $newAmount, 2), 0);
+                $detail->update([
+                    'amount_applied' => $newAmount,
+                    'quota_balance_after' => $balanceAfter,
+                ]);
+            }
+
+            if ($payment->transaction) {
+                $payment->transaction->update([
+                    'payment_method_id' => $request->payment_method_id,
+                    'total_amount' => $payment->transaction->payments()->active()->sum('amount'),
+                ]);
+            }
+
+            if ($request->hasFile('image') && $oldImage && $oldImage !== $image) {
+                $isImageStillUsed = Payment::active()
+                    ->where('id', '!=', $payment->id)
+                    ->where('image', $oldImage)
+                    ->exists();
+
+                if (!$isImageStillUsed && Storage::disk('public')->exists($oldImage)) {
+                    Storage::disk('public')->delete($oldImage);
+                }
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            if (isset($image) && $request->hasFile('image') && Storage::disk('public')->exists($image)) {
+                Storage::disk('public')->delete($image);
+            }
+
+            return response()->json([
+                'status' => false,
+                'error' => 'No se pudo actualizar el pago.'
+            ]);
+        }
 
         return response()->json([
             'status' => true
