@@ -361,19 +361,28 @@
             </td>
             <td class="center" style="width: 50%;">
                 _______________________________<br>
-                <span class="bold">PRESTATARIO</span><br>
-                {{ $debtors[0]['name'] ?? '' }}<br>
-                DNI: {{ $debtors[0]['document'] ?? '' }}
+                <span class="bold">ASESOR</span><br>
+                {{ $sellerName }}
             </td>
         </tr>
+    </table>
+
+    <h3>FIRMA DE DEUDOR(ES) / INTEGRANTES</h3>
+    <table>
         <tr>
-            <td class="center" style="padding-top: 28px;">
-                _______________________________<br>
-                {{ $sellerName }}<br>
-                ASESOR
-            </td>
-            <td></td>
+            <th style="width: 38%;">APELLIDOS Y NOMBRES</th>
+            <th style="width: 16%;">DNI</th>
+            <th style="width: 23%;">FIRMA</th>
+            <th style="width: 23%;">HUELLA</th>
         </tr>
+        @foreach($debtors as $debtor)
+            <tr>
+                <td class="upper">{{ $debtor['name'] }}</td>
+                <td class="center">{{ $debtor['document'] }}</td>
+                <td style="height: 48px;"></td>
+                <td></td>
+            </tr>
+        @endforeach
     </table>
 
     <div class="page-break"></div>

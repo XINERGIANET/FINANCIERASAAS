@@ -200,11 +200,32 @@
             <td class="center" style="width: 50%;">
                 <div class="signature-space"></div>
                 <div>______________________________</div>
-                <div class="bold">EL MUTUATARIO / CLIENTE</div>
-                <div class="upper">{{ $mainDebtor['name'] }}</div>
-                <div>DNI: {{ $mainDebtor['document'] }}</div>
+                <div class="bold">ASESOR</div>
+                <div class="upper">{{ optional($contract->seller)->name }}</div>
             </td>
         </tr>
+    </table>
+
+    <h3>FIRMA DE MUTUATARIO(S) / INTEGRANTES</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 38%;">APELLIDOS Y NOMBRES</th>
+                <th style="width: 16%;">DNI</th>
+                <th style="width: 23%;">FIRMA</th>
+                <th style="width: 23%;">HUELLA</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($debtors as $debtor)
+                <tr>
+                    <td class="upper">{{ $debtor['name'] }}</td>
+                    <td class="center">{{ $debtor['document'] }}</td>
+                    <td style="height: 48px;"></td>
+                    <td></td>
+                </tr>
+            @endforeach
+        </tbody>
     </table>
 
     <div class="page-break"></div>
@@ -288,14 +309,37 @@
             <td class="center">
                 <div class="signature-space"></div>
                 <div>______________________________</div>
-                <div class="upper">{{ $mainDebtor['name'] }}</div>
+                <div class="upper">{{ $companyName }}</div>
             </td>
             <td class="center">
                 <div class="signature-space"></div>
                 <div>______________________________</div>
-                <div class="upper">{{ $companyName }}</div>
+                <div class="upper">{{ optional($contract->seller)->name }}</div>
+                <div>ASESOR</div>
             </td>
         </tr>
+    </table>
+
+    <h3>FIRMA DE MUTUATARIO(S) / INTEGRANTES</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 38%;">APELLIDOS Y NOMBRES</th>
+                <th style="width: 16%;">DNI</th>
+                <th style="width: 23%;">FIRMA</th>
+                <th style="width: 23%;">HUELLA</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($debtors as $debtor)
+                <tr>
+                    <td class="upper">{{ $debtor['name'] }}</td>
+                    <td class="center">{{ $debtor['document'] }}</td>
+                    <td style="height: 48px;"></td>
+                    <td></td>
+                </tr>
+            @endforeach
+        </tbody>
     </table>
 
     <div class="page-break"></div>
