@@ -21,6 +21,7 @@ class Company extends Model
         'insurance_amount',
         'number_pagare',
         'client_type_config',
+        'contract_format',
     ];
 
     protected $casts = [

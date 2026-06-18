@@ -1064,7 +1064,7 @@ class ContractController extends Controller
 
         // Renderizar la vista
         $documentMode = 'pdf';
-        $html = view('contracts.pdf.pdf_personal', compact('contract', 'documentMode'))->render();
+        $html = view($this->contractDocumentView($contract), compact('contract', 'documentMode'))->render();
 
         // Cargar HTML y generar PDF
         $dompdf->loadHtml($html);
@@ -1083,7 +1083,7 @@ class ContractController extends Controller
 
         $contract = $this->prepareContractDocumentData($contract);
         $documentMode = 'word';
-        $html = view('contracts.pdf.pdf_personal', compact('contract', 'documentMode'))->render();
+        $html = view($this->contractDocumentView($contract), compact('contract', 'documentMode'))->render();
 
         return response($html, 200)
             ->header('Content-Type', 'application/msword; charset=UTF-8')
@@ -1097,6 +1097,15 @@ class ContractController extends Controller
         if (!$company || !$company->hasPermission('contract_pdf')) {
             abort(403, 'La financiera no tiene habilitado el documento de contrato.');
         }
+    }
+
+    private function contractDocumentView(Contract $contract): string
+    {
+        $format = optional($contract->company)->contract_format ?: 'sv';
+
+        return $format === 'credypaita'
+            ? 'contracts.pdf.pdf_credypaita'
+            : 'contracts.pdf.pdf_personal';
     }
 
     private function prepareContractDocumentData(Contract $contract): Contract

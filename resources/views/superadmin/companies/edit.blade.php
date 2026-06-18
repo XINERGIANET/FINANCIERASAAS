@@ -95,6 +95,17 @@
             </div>
 
             <div class="mb-3">
+                <label class="form-label required">Formato de contrato PDF/Word</label>
+                <select class="form-select @error('contract_format') is-invalid @enderror" name="contract_format" required>
+                    <option value="sv" {{ old('contract_format', $company->contract_format ?? 'sv') == 'sv' ? 'selected' : '' }}>Formato SV</option>
+                    <option value="credypaita" {{ old('contract_format', $company->contract_format ?? 'sv') == 'credypaita' ? 'selected' : '' }}>Formato CREDYPAITA</option>
+                </select>
+                @error('contract_format')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <div class="mb-3">
                 <label class="form-label">Logotipo de la Financiera</label>
                 <div class="d-flex align-items-center gap-3 mb-2">
                     <div class="avatar avatar-lg bg-white border">
