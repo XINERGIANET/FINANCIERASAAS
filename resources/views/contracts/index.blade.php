@@ -1168,12 +1168,7 @@
                     setContractDate(data.date ? data.date.split('T')[0] : '');
                     $('#interest').val(data.percentage);
                     
-                    // El formulario trabaja con numero de cuotas y seguro mensual.
-                    var quotasPerMonthMap = { 1: 4, 2: 2, 4: 1 };
-                    var quotasPerMonth = quotasPerMonthMap[parseInt(data.type_quota)] || 4;
-                    var contractMonths = parseFloat(data.months_number) || (quotasNumber > 0 ? (quotasNumber / quotasPerMonth) : 0);
-                    var insurance_per_month = contractMonths > 0 ? (data.insurance_amount / contractMonths).toFixed(2) : data.insurance_amount;
-                    $('#insurance_cost').val(insurance_per_month);
+                    $('#insurance_cost').val(data.insurance_amount);
 
                     isHydratingContractForm = false;
                     openModal('#createModal');

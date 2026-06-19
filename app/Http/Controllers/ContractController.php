@@ -267,7 +267,6 @@ class ContractController extends Controller
         }
 
         $interest_percentage = floatval($request->interest);
-
         $insurance_cost = round(floatval($request->insurance_cost), 2);
 
         $type_quota = (int) $request->type_quota;
@@ -287,10 +286,6 @@ class ContractController extends Controller
         $quotasPerMonth = isset($quotasPerMonthMap[$type_quota]) ? $quotasPerMonthMap[$type_quota] : 4;
         // Calcular el número de meses: cuotas / cuotas por mes
         $months = $quotas / $quotasPerMonth;
-
-        // Calcular el seguro usando el número de meses calculado
-        $insurance_cost = floatval($request->insurance_cost) * $months;
-        $insurance_cost = round($insurance_cost * 10) / 10;
 
         $percentage = $interest_percentage;
 
@@ -545,6 +540,7 @@ class ContractController extends Controller
 
         try {
             $interest_percentage = floatval($request->interest);
+            $insurance_cost = round(floatval($request->insurance_cost), 2);
             $type_quota = (int) $request->type_quota;
             $quotas = $request->months_number;
             $quotas_rounded = ceil($quotas);
@@ -553,8 +549,6 @@ class ContractController extends Controller
             $quotasPerMonth = isset($quotasPerMonthMap[$type_quota]) ? $quotasPerMonthMap[$type_quota] : 4;
             $months = $quotas / $quotasPerMonth;
 
-            $insurance_cost = floatval($request->insurance_cost) * $months;
-            $insurance_cost = round($insurance_cost * 10) / 10;
             $percentage = $interest_percentage;
             $interest = $request->requested_amount * ($interest_percentage / 100);
             $payable_amount = $request->requested_amount + $interest + $insurance_cost;
