@@ -31,6 +31,7 @@ class CompanyController extends Controller
 
     const FEATURES = [
         'contract_pdf' => 'Contratos: PDF y Word de contrato',
+        'seller_contract_delete' => 'Contratos: asesores pueden eliminar contratos',
     ];
 
     public static function allPermissionModules(): array

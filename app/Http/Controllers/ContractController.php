@@ -813,6 +813,13 @@ class ContractController extends Controller
 
     public function destroy(Request $request, Contract $contract)
     {
+        if (!$this->userCanDeleteContract($contract)) {
+            return response()->json([
+                'status' => false,
+                'error' => 'No tienes permiso para eliminar contratos.',
+            ], 403);
+        }
+
         $contract->update([
             'deleted' => 1
         ]);
@@ -824,6 +831,13 @@ class ContractController extends Controller
 
     public function bulkDestroy(Request $request, ContractBulkDeletionService $deletionService)
     {
+        if (auth()->user()->hasRole('seller')) {
+            return response()->json([
+                'status' => false,
+                'error' => 'No tienes permiso para eliminar contratos masivamente.',
+            ], 403);
+        }
+
         $request->validate([
             'contract_ids' => 'required|array|min:1',
             'contract_ids.*' => 'integer',
@@ -850,6 +864,25 @@ class ContractController extends Controller
             'status' => true,
             'deleted_count' => $deletedCount,
         ]);
+    }
+
+    private function userCanDeleteContract(Contract $contract): bool
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            return false;
+        }
+
+        if (!$user->hasRole('seller')) {
+            return true;
+        }
+
+        $company = $user->company;
+
+        return $company
+            && $company->allowsSellerContractDeletion()
+            && (int) $contract->seller_id === (int) $user->id;
     }
 
     public function api(Request $request)

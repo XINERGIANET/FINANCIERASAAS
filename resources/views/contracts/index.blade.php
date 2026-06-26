@@ -3,6 +3,12 @@
 @section('title', 'Contratos')
 
 @section('content')
+    @php
+        $currentUser = auth()->user();
+        $canDeleteContracts = !$currentUser->hasRole('seller')
+            || ($currentUser->company && $currentUser->company->allowsSellerContractDeletion());
+    @endphp
+
     <nav class="mb-2">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ url('/') }}">Inicio</a></li>
@@ -190,10 +196,12 @@
                                                 title="{{ $hasPaidQuotas ? 'Editar (se validará al guardar si tiene cuotas pagadas)' : 'Editar' }}">
                                                 <i class="ti ti-edit icon"></i>
                                             </button>
-                                            <button class="btn btn-icon btn-danger btn-delete"
-                                                data-id="{{ $contract->id }}">
-                                                <i class="ti ti-x icon"></i>
-                                            </button>
+                                            @if ($canDeleteContracts)
+                                                <button class="btn btn-icon btn-danger btn-delete"
+                                                    data-id="{{ $contract->id }}">
+                                                    <i class="ti ti-x icon"></i>
+                                                </button>
+                                            @endif
                                         @endif
 
                                     </div>

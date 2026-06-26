@@ -42,6 +42,13 @@ class Company extends Model
         return in_array($module, $perms ?? []);
     }
 
+    public function allowsSellerContractDeletion(): bool
+    {
+        $perms = is_array($this->permissions) ? $this->permissions : json_decode($this->permissions, true);
+
+        return in_array('seller_contract_delete', $perms ?? [], true);
+    }
+
     public function users()
     {
         return $this->hasMany(User::class);
