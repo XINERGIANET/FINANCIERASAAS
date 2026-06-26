@@ -191,10 +191,10 @@ class ClientController extends Controller
     }
 
     public function api(Request $request){
-        $contracts = Contract::active()->where(function($query) use($request){
+        $contracts = Contract::active()->with('district.province.department')->where(function($query) use($request){
             return $query->where('name', 'like', '%'.$request->q.'%')
                 ->orWhere('document', 'like', '%'.$request->q.'%');
-        })->where('client_type', 'Personal')->orderBy('name')->get();
+        })->where('client_type', 'Personal')->latest('date')->latest('id')->get()->unique('document')->values();
         return response()->json(['items' => $contracts]);
     }
 

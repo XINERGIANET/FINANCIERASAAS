@@ -669,10 +669,105 @@
             $('#date_display').val(normalizedDate);
         }
 
+        function loadProvinceOptions(departmentId, selectedProvinceId, selectedDistrictId) {
+            var $provinceSelect = $('#province_id');
+            var $districtSelect = $('#district_id');
+
+            $provinceSelect.html('<option value="">Seleccionar</option>');
+            $districtSelect.html('<option value="">Seleccionar</option>');
+
+            if (!departmentId) {
+                return;
+            }
+
+            $.ajax({
+                url: '{{ route('api.provinces') }}',
+                method: 'GET',
+                data: {
+                    department_id: departmentId
+                },
+                success: function(data) {
+                    $.each(data, function(index, province) {
+                        $provinceSelect.append('<option value="' + province.id + '">' + province.name + '</option>');
+                    });
+
+                    if (selectedProvinceId) {
+                        $provinceSelect.val(selectedProvinceId);
+                        loadDistrictOptions(selectedProvinceId, selectedDistrictId);
+                    }
+                },
+                error: function() {
+                    ToastError.fire({
+                        text: 'OcurriÃ³ un error al cargar las provincias'
+                    });
+                }
+            });
+        }
+
+        function loadDistrictOptions(provinceId, selectedDistrictId) {
+            var $districtSelect = $('#district_id');
+
+            $districtSelect.html('<option value="">Seleccionar</option>');
+
+            if (!provinceId) {
+                return;
+            }
+
+            $.ajax({
+                url: '{{ route('api.districts') }}',
+                method: 'GET',
+                data: {
+                    province_id: provinceId
+                },
+                success: function(data) {
+                    $.each(data, function(index, district) {
+                        $districtSelect.append('<option value="' + district.id + '">' + district.name + '</option>');
+                    });
+
+                    if (selectedDistrictId) {
+                        $districtSelect.val(selectedDistrictId);
+                    }
+                },
+                error: function() {
+                    ToastError.fire({
+                        text: 'OcurriÃ³ un error al cargar los distritos'
+                    });
+                }
+            });
+        }
+
+        function fillPersonalClientFields(data) {
+            data = data || {};
+
+            $('#name').prop('readonly', false).val(normalizeDataValue(data.name));
+            $('#phone').val(normalizeDataValue(data.phone));
+            $('#address').val(normalizeDataValue(data.address));
+            $('#reference').val(normalizeDataValue(data.reference));
+            $('#business_line').val(normalizeDataValue(data.business_line));
+            $('#business_address').val(normalizeDataValue(data.business_address));
+            $('[name="business_start_date"]').val(data.business_start_date ? String(data.business_start_date).split('T')[0] : '');
+            $('#home_type').val(normalizeDataValue(data.home_type));
+            $('#civil_status').val(normalizeDataValue(data.civil_status)).trigger('change');
+            $('#husband_name').val(normalizeDataValue(data.husband_name));
+            $('#husband_document').val(normalizeDataValue(data.husband_document));
+
+            if (data.district && data.district.province) {
+                var province = data.district.province;
+                var departmentId = province.department_id || data.district.department_id || '';
+                $('#department_id').val(departmentId);
+                loadProvinceOptions(departmentId, province.id, data.district.id);
+            } else {
+                $('#department_id').val('');
+                $('#province_id').html('<option value="">Seleccionar</option>');
+                $('#district_id').html('<option value="">Seleccionar</option>');
+            }
+        }
+
         $(document).ready(function() {
             var queryString = window.location.search;
             var parametros = new URLSearchParams(queryString);
 
+            $('#divPhone label, #divAddress label, #divReference label').addClass('required');
 
             if (parametros.get('modal') == 'create') {
                 openModal('#createModal');
@@ -723,7 +818,7 @@
                     },
                     render: {
                         item: function(data, escape) {
-                            return `<div data-name="${escape(data.name)}" data-phone="${escape(data.phone)}" data-address="${escape(data.address)}" data-reference="${escape(data.reference)}" data-business-line="${escape(data.business_line)}" data-business-address="${escape(data.business_address)}" data-home-type="${escape(data.home_type)}" data-civil-status="${escape(data.civil_status)}">${escape(data.document)}</div>`;
+                            return `<div data-client='${escape(JSON.stringify(data))}'>${escape(data.document)}</div>`;
                         },
                         option: function(data, escape) {
                             return `<div>${escape(data.document)} - ${ data.name ? escape(data.name) : ''}</div>`;
@@ -738,50 +833,23 @@
                     },
                     onItemAdd: function(value, item) {
                         var dataset = item.dataset || {};
-                        if (isMain) {
-                            // llenar campos globales
-                            $('#name').prop('readonly', false);
-                            if (dataset.name == 'undefined') {
-                                $('#name').val('');
-                            } else {
-                                $('#name').val(dataset.name || '');
-                                $('#phone').val(dataset.phone == 'null' ? '' : (dataset.phone || ''));
-                                $('#address').val(dataset.address == 'null' ? '' : (dataset.address ||
-                                    ''));
-                                var reference = dataset.reference || dataset.ref || dataset
-                                    .referencia || '';
-                                $('#reference').val(reference == 'null' ? '' : reference);
-                                var businessLine = dataset.businessLine || dataset.business_line ||
-                                    dataset.rubro || '';
-                                $('#business_line').val(businessLine == 'null' ? '' : businessLine);
-                                var businessAddress = dataset.businessAddress || dataset
-                                    .business_address || '';
-                                $('#business_address').val(businessAddress == 'null' ? '' :
-                                    businessAddress);
-                                $('#home_type').val(dataset.homeType == 'null' ? '' : (dataset
-                                    .homeType || dataset.home_type || ''));
-                                $('#civil_status').val(dataset.civilStatus == 'null' ? '' : (dataset
-                                    .civilStatus || dataset.civil_status || ''));
+                        var clientData = {};
 
-                                if (dataset.civil_status == 'Casado' || dataset.civilStatus ==
-                                    'Casado') {
-                                    $('#divHusbandName').show();
-                                    $('#divHusbandDocument').show();
-                                } else {
-                                    $('#husband_name').val('');
-                                    $('#husband_document').val('');
-                                    $('#divHusbandName').hide();
-                                    $('#divHusbandDocument').hide();
-                                }
+                        if (dataset.client) {
+                            try {
+                                clientData = JSON.parse(dataset.client);
+                            } catch (e) {
+                                clientData = {};
                             }
+                        }
 
-
+                        if (isMain) {
+                            fillPersonalClientFields(clientData);
                         } else {
                             // si es un DNI de grupo, rellenar solo los campos de la fila correspondiente
                             var $row = $($input).closest('.row');
-                            $row.find('input[name="names[]"]').prop('readonly', false).val(normalizeDataValue(dataset.name));
-                            $row.find('input[name="addresses[]"]').val(normalizeDataValue(dataset
-                                .address));
+                            $row.find('input[name="names[]"]').prop('readonly', false).val(normalizeDataValue(clientData.name));
+                            $row.find('input[name="addresses[]"]').val(normalizeDataValue(clientData.address));
                         }
 
                         if (!isMain || isHydratingContractForm) {
@@ -1122,7 +1190,7 @@
                         $('#business_line').val(normalizeDataValue(data.business_line));
                         $('#business_address').val(normalizeDataValue(data.business_address));
                         if(data.business_start_date) {
-                            $('#business_start_date').val(data.business_start_date.split('T')[0]);
+                            $('[name="business_start_date"]').val(data.business_start_date.split('T')[0]);
                         }
                         $('#civil_status').val(normalizeDataValue(data.civil_status)).trigger('change');
                         $('#husband_name').val(normalizeDataValue(data.husband_name));
