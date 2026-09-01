@@ -24,10 +24,12 @@ class PortfolioDailyReportExport implements FromArray, ShouldAutoSize, WithEvent
 {
     private $reportDate;
     private $cachedGoals;
+    private $company;
 
-    public function __construct($date = null)
+    public function __construct($date = null, $company = null)
     {
         $this->reportDate = $date ? Carbon::parse($date)->startOfDay() : today();
+        $this->company = $company ?: (auth()->check() ? auth()->user()->company : null);
     }
 
     public function title(): string
@@ -63,8 +65,9 @@ class PortfolioDailyReportExport implements FromArray, ShouldAutoSize, WithEvent
 
     public function array(): array
     {
+        $companyName = $this->company ? strtoupper($this->company->name) : 'CREDYFACIL';
         $rows = [
-            ['REPORTE DE CARTERA CREDYFACIL AL ' . $this->reportDate->format('d/m/Y')],
+            ['REPORTE DE CARTERA ' . $companyName . ' AL ' . $this->reportDate->format('d/m/Y')],
             $this->headings(),
         ];
 
@@ -319,8 +322,9 @@ class PortfolioDailyReportExport implements FromArray, ShouldAutoSize, WithEvent
 
     private function totalRow(array $totals): array
     {
+        $companyName = $this->company ? strtoupper($this->company->name) : 'TOTAL';
         return [
-            'CREDYFACIL',
+            $companyName,
             $totals[1],                                             // INIC. MES CLIENTES
             $totals[2],                                             // AVANCE CLIENTES
             $totals[3],                                             // CRECIMIENTO

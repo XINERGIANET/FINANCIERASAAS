@@ -41,9 +41,10 @@ class WebController extends Controller
                 ->with('message', 'Debe registrar las metas de este mes antes de generar el reporte.');
         }
 
-        $name = 'Reporte_Cartera_Credyfacil_' . $date->format('d_m_Y') . '.xlsx';
+        $companySlug = \Illuminate\Support\Str::slug($company->name, '_');
+        $name = 'Reporte_Cartera_' . $companySlug . '_' . $date->format('d_m_Y') . '.xlsx';
 
-        return Excel::download(new PortfolioDailyReportExport($date->format('Y-m-d')), $name);
+        return Excel::download(new PortfolioDailyReportExport($date->format('Y-m-d'), $company), $name);
     }
 
     public function index(Request $request){
@@ -511,7 +512,7 @@ class WebController extends Controller
         $portfolioOverdueReport = null;
 
         if ($showPortfolioDaily) {
-            $portfolioReport = (new PortfolioDailyReportExport($portfolioReportDate))->data();
+            $portfolioReport = (new PortfolioDailyReportExport($portfolioReportDate, $company))->data();
         }
 
         if ($showPortfolioOverdue) {

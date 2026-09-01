@@ -1,3 +1,20 @@
+/node_modules
+/vendor
+.env
+.env.backup
+.env.production
+.env.dev
+/storage/*.key
+/public/storage
+/public/hot
+/public/build
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+
+# Temporary / scripts
 branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat
