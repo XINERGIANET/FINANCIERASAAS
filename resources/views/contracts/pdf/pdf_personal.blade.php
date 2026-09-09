@@ -271,13 +271,23 @@
             <th>FIRMA Y HUELLA DEL DEUDOR(ES)</th>
         </tr>
         <tr>
-            <td class="upper">{{ $debtors[0]['name'] ?? '' }}</td>
-            <td class="signature-space center">
+            <td class="upper">
                 <div>{{ $sellerName }}</div>
                 <div class="tiny">ASESOR</div>
             </td>
             <td class="signature-space"></td>
+            <td class="signature-space"></td>
         </tr>
+        @if ($company && $company->hasContractLeader())
+        <tr>
+            <td class="upper">
+                <div>{{ $company->contract_leader_name }}</div>
+                <div class="tiny">{{ $company->contract_leader_charge ?: 'LIDER Y RESPONSABLE' }}</div>
+            </td>
+            <td class="signature-space"></td>
+            <td class="signature-space"></td>
+        </tr>
+        @endif
     </table>
 
     <p>

@@ -22,6 +22,8 @@ class Company extends Model
         'number_pagare',
         'client_type_config',
         'contract_format',
+        'contract_leader_name',
+        'contract_leader_charge',
     ];
 
     protected $casts = [
@@ -37,8 +39,8 @@ class Company extends Model
     {
         if (is_null($this->permissions)) {
             // Si las permissions son null (empresa recién creada sin config explícita),
-            // cuota_catorcenal y seller_contract_delete arrancan desactivadas por defecto
-            if (in_array($module, ['quota_catorcenal', 'seller_contract_delete'])) {
+            // cuota_catorcenal, seller_contract_delete y contract_show_leader arrancan desactivadas por defecto
+            if (in_array($module, ['quota_catorcenal', 'seller_contract_delete', 'contract_show_leader'])) {
                 return false;
             }
             return true;
@@ -81,6 +83,11 @@ class Company extends Model
     public function allowsCatorcenalQuota(): bool
     {
         return $this->hasPermission('quota_catorcenal');
+    }
+
+    public function hasContractLeader(): bool
+    {
+        return $this->hasPermission('contract_show_leader') && !empty(trim($this->contract_leader_name ?? ''));
     }
 
     public function users()

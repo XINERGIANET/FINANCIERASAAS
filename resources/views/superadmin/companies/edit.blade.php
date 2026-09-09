@@ -105,6 +105,35 @@
                 @enderror
             </div>
 
+            <div class="card bg-light border mb-3">
+                <div class="card-body py-3">
+                    <div class="fw-bold mb-2 text-primary">Configuración de Firmas en Contrato (Opcional)</div>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Líder / Responsable en Contratos (Nombre)</label>
+                            <input type="text" class="form-control @error('contract_leader_name') is-invalid @enderror" 
+                                   name="contract_leader_name" 
+                                   value="{{ old('contract_leader_name', $company->contract_leader_name) }}" 
+                                   placeholder="Ej: SOSA NAVARRO SINDY PAMELA">
+                            <small class="text-muted">Si se deja vacío, solo figurará el Asesor comercial asignado.</small>
+                            @error('contract_leader_name')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Cargo del Líder en Contratos</label>
+                            <input type="text" class="form-control @error('contract_leader_charge') is-invalid @enderror" 
+                                   name="contract_leader_charge" 
+                                   value="{{ old('contract_leader_charge', $company->contract_leader_charge ?: 'LIDER Y RESPONSABLE') }}" 
+                                   placeholder="Ej: LIDER Y RESPONSABLE">
+                            @error('contract_leader_charge')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="mb-3">
                 <label class="form-label">Logotipo de la Financiera</label>
                 <div class="d-flex align-items-center gap-3 mb-2">

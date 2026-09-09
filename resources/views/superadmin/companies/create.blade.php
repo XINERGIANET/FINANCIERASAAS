@@ -104,6 +104,35 @@
                 @enderror
             </div>
 
+            <div class="card bg-light border mb-3">
+                <div class="card-body py-3">
+                    <div class="fw-bold mb-2 text-primary">Configuración de Firmas en Contrato (Opcional)</div>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Líder / Responsable en Contratos (Nombre)</label>
+                            <input type="text" class="form-control @error('contract_leader_name') is-invalid @enderror" 
+                                   name="contract_leader_name" 
+                                   value="{{ old('contract_leader_name') }}" 
+                                   placeholder="Ej: SOSA NAVARRO SINDY PAMELA">
+                            <small class="text-muted">Si se deja vacío, solo figurará el Asesor comercial asignado.</small>
+                            @error('contract_leader_name')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Cargo del Líder en Contratos</label>
+                            <input type="text" class="form-control @error('contract_leader_charge') is-invalid @enderror" 
+                                   name="contract_leader_charge" 
+                                   value="{{ old('contract_leader_charge', 'LIDER Y RESPONSABLE') }}" 
+                                   placeholder="Ej: LIDER Y RESPONSABLE">
+                            @error('contract_leader_charge')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="mb-3">
                 <label class="form-label">Logotipo de la Financiera</label>
                 <input type="file" class="form-control @error('logo') is-invalid @enderror" name="logo" accept="image/*">
@@ -118,7 +147,7 @@
                 <div class="d-flex flex-wrap gap-3">
                     @foreach($modules as $key => $name)
                         <label class="form-check form-check-inline">
-                            <input class="form-check-input" type="checkbox" name="permissions[]" value="{{ $key }}" {{ in_array($key, ['seller_contract_delete', 'quota_catorcenal']) ? '' : 'checked' }}>
+                            <input class="form-check-input" type="checkbox" name="permissions[]" value="{{ $key }}" {{ in_array($key, ['seller_contract_delete', 'quota_catorcenal', 'contract_show_leader']) ? '' : 'checked' }}>
                             <span class="form-check-label">{{ $name }}</span>
                         </label>
                     @endforeach

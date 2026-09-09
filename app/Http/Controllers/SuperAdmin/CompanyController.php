@@ -35,6 +35,7 @@ class CompanyController extends Controller
         'quota_semanal' => 'Contratos: Permitir tipo de cuota Semanal',
         'quota_quincenal' => 'Contratos: Permitir tipo de cuota Quincenal',
         'quota_catorcenal' => 'Contratos: Permitir tipo de cuota Catorcenal',
+        'contract_show_leader' => 'Contratos: Mostrar Líder y Responsable en firmas',
     ];
 
     public static function allPermissionModules(): array
@@ -67,6 +68,8 @@ class CompanyController extends Controller
             'number_pagare' => 'required|integer|min:0',
             'client_type_config' => 'required|string|in:Ambos,Personal,Grupo',
             'contract_format' => 'required|string|in:sv,credypaita',
+            'contract_leader_name' => 'nullable|string|max:255',
+            'contract_leader_charge' => 'nullable|string|max:255',
             'logo' => 'nullable|image|max:2048',
             'permissions' => 'nullable|array',
         ]);
@@ -128,6 +131,8 @@ class CompanyController extends Controller
             'number_pagare' => 'required|integer|min:0',
             'client_type_config' => 'required|string|in:Ambos,Personal,Grupo',
             'contract_format' => 'required|string|in:sv,credypaita',
+            'contract_leader_name' => 'nullable|string|max:255',
+            'contract_leader_charge' => 'nullable|string|max:255',
             'logo' => 'nullable|image|max:2048',
             'permissions' => 'nullable|array',
         ]);
