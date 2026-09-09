@@ -230,7 +230,7 @@ class ContractsImportDataExport implements WithMultipleSheets
 
     private function quotaType(Contract $contract): string
     {
-        $map = [1 => 'Semanal', 2 => 'Quincenal', 4 => 'Mensual'];
+        $map = [1 => 'Semanal', 2 => 'Quincenal', 3 => 'Catorcenal', 4 => 'Mensual'];
 
         if (!is_null($contract->type_quota) && isset($map[(int) $contract->type_quota])) {
             return $map[(int) $contract->type_quota];
@@ -245,8 +245,12 @@ class ContractsImportDataExport implements WithMultipleSheets
                 return 'Mensual';
             }
 
-            if ($diff >= 12 && $diff <= 16) {
+            if ($diff >= 15 && $diff <= 16) {
                 return 'Quincenal';
+            }
+
+            if ($diff >= 13 && $diff <= 14) {
+                return 'Catorcenal';
             }
 
             if ($diff >= 5 && $diff <= 9) {

@@ -32,6 +32,9 @@ class CompanyController extends Controller
     const FEATURES = [
         'contract_pdf' => 'Contratos: PDF y Word de contrato',
         'seller_contract_delete' => 'Contratos: asesores pueden eliminar contratos',
+        'quota_semanal' => 'Contratos: Permitir tipo de cuota Semanal',
+        'quota_quincenal' => 'Contratos: Permitir tipo de cuota Quincenal',
+        'quota_catorcenal' => 'Contratos: Permitir tipo de cuota Catorcenal',
     ];
 
     public static function allPermissionModules(): array

@@ -482,8 +482,21 @@
                                 <div class="mb-3">
                                     <label class="form-label required">Tipo de Cuota</label>
                                     <select class="form-select" name="type_quota">
-                                        <option value="1">Semanal</option>
-                                        <option value="2">Quincenal</option>
+                                        @php
+                                            $comp = auth()->user()->company;
+                                            $allowSemanal = !$comp || $comp->allowsSemanalQuota();
+                                            $allowCatorcenal = $comp && $comp->allowsCatorcenalQuota();
+                                            $allowQuincenal = !$comp || $comp->allowsQuincenalQuota();
+                                        @endphp
+                                        @if ($allowSemanal)
+                                            <option value="1">Semanal</option>
+                                        @endif
+                                        @if ($allowCatorcenal)
+                                            <option value="3">Catorcenal</option>
+                                        @endif
+                                        @if ($allowQuincenal)
+                                            <option value="2">Quincenal</option>
+                                        @endif
                                     </select>
                                 </div>
                             </div>
@@ -1090,11 +1103,12 @@
                 var type_quota = parseInt($('select[name="type_quota"]').val()) || 1;
 
                 // Calcular el número de meses según el tipo de cuota
-                // 1 => semanal (4 cuotas/mes), 2 => catorcenal (2 cuotas/mes), 4 => mensual (1 cuota/mes)
+                // 1 => semanal (4 cuotas/mes), 2 => quincenal (2 cuotas/mes), 3 => catorcenal (2 cuotas/mes), 4 => mensual (1 cuota/mes)
                 var quotasPerMonthMap = {
                     1: 4, // semanal: 4 cuotas por mes
-                    2: 2, // catorcenal: 2 cuotas por mes
-                    4: 1 // mensual: 1 cuota por mes
+                    2: 2, // quincenal: 2 cuotas por mes
+                    3: 2, // catorcenal: 2 cuotas por mes
+                    4: 1  // mensual: 1 cuota por mes
                 };
                 var quotasPerMonth = quotasPerMonthMap[type_quota] || 4;
                 var months = quotas / quotasPerMonth;

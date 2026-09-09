@@ -118,7 +118,7 @@
                 <div class="d-flex flex-wrap gap-3">
                     @foreach($modules as $key => $name)
                         <label class="form-check form-check-inline">
-                            <input class="form-check-input" type="checkbox" name="permissions[]" value="{{ $key }}" {{ $key === 'seller_contract_delete' ? '' : 'checked' }}>
+                            <input class="form-check-input" type="checkbox" name="permissions[]" value="{{ $key }}" {{ in_array($key, ['seller_contract_delete', 'quota_catorcenal']) ? '' : 'checked' }}>
                             <span class="form-check-label">{{ $name }}</span>
                         </label>
                     @endforeach

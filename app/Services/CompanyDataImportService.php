@@ -478,6 +478,8 @@ class CompanyDataImportService
                 $quotaDate = $date->copy()->addWeeks($i);
             } elseif ($typeQuota === 2) {
                 $quotaDate = $date->copy()->addDays($i * 15);
+            } elseif ($typeQuota === 3) {
+                $quotaDate = $date->copy()->addDays($i * 14);
             } else {
                 $quotaDate = $date->copy()->addWeeks($i);
             }
@@ -752,11 +754,12 @@ class CompanyDataImportService
             'semanal' => 1,
             '2' => 2,
             'quincenal' => 2,
-            'catorcenal' => 2,
+            '3' => 3,
+            'catorcenal' => 3,
         ];
 
         if (!isset($map[$value])) {
-            $this->errors[] = 'CONTRATOS fila ' . $line . ': tipo_cuota invalido. Use Semanal o Quincenal.';
+            $this->errors[] = 'CONTRATOS fila ' . $line . ': tipo_cuota invalido. Use Semanal, Catorcenal o Quincenal.';
 
             return null;
         }
@@ -766,7 +769,7 @@ class CompanyDataImportService
 
     private function monthsFromQuotas(int $quotas, int $typeQuota): float
     {
-        $perMonth = [1 => 4, 2 => 2, 4 => 1][$typeQuota] ?? 4;
+        $perMonth = [1 => 4, 2 => 2, 3 => 2, 4 => 1][$typeQuota] ?? 4;
 
         return round($quotas / $perMonth, 2);
     }
